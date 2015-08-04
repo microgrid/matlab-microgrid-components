@@ -131,20 +131,25 @@ for year=loadCurve                                          % outer loop going t
     SoC = zeros(1,size(Load,2));    % to save step-by-step SoC (State of Charge)
 
     n = 0;
-    % Plant simulation
-    for PV_i = 1 : n_PV
+    %% Plant simulation
+    % iterate over all PV power sizes from min_PV to max_PV
+    for PV_i = 1 : n_PV                                                 
         n = n + 1;
         PVpower_i = min_PV + (PV_i - 1) * step_PV;                      % iteration on PV power
-        eta_cell = 1 - coeff_T_pow .* (T_cell - T_ref);                 % Cell efficiency as function of temperature
+        eta_cell = 1 - coeff_T_pow .* (T_cell - T_ref);                 % cell efficiency as function of temperature
         P_pv = irr .* PVpower_i .* eta_cell .* eta_BoS;                 % array with Energy from the PV (EPV) for each time step throughout the year
-        batt_balance = Load / eta_inv - P_pv;                           % Array containing the power balance of the battery for each time step throughout the year (negative value is charging battery) [kWh]
-        for B_i = 1 : n_B
-            Bcap_i = min_B + (B_i - 1) * step_B;                        % iteration on Batt. capacity
+        batt_balance = Load / eta_inv - P_pv;                           % array containing the power balance of the battery for each time step throughout the year (negative value is charging battery) [kWh]
+        
+        % iterate over all battery capacities from min_B to max_B
+        for B_i = 1 : n_B                                               
+            Bcap_i = min_B + (B_i - 1) * step_B;                        % iteration on battery capacity
             EPV(PV_i, B_i) = sum(P_pv, 2);                              % computing EPV value
             SoC(1, 1) = SoC_start;                                      % setting initial state of charge
             Pow_max = batt_ratio * Bcap_i;                              % maximum power acceptable by the battery
             Den_rainflow = 0;
-            for k = 1 : size(Load,2)                                    % simulation throughout the year
+            
+            % iterate through the timesteps in one year
+            for k = 1 : size(Load,2)                                    
                 if k > 8
                     if batt_balance(1, k-1) > 0 && batt_balance(1, k-2) > 0 && batt_balance(1, k-3) > 0 && batt_balance(1, k-4) > 0 && batt_balance(1, k-5) > 0 && batt_balance(1, k-6) > 0 && batt_balance(1, k-7) > 0 && batt_balance(1, k-8) > 0 && batt_balance(1, k) < 0 
                        DOD = 1 - SoC(k);
