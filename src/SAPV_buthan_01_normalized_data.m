@@ -64,7 +64,7 @@ for year=loadCurve                                          % outer loop going t
     T_amb=importdata('surface_temp_phuent_2004_hour.mat');                              % Import ambient temperature data
     T_nom=47;                                                                           % Nominal Operating Cell Temperature [°C]
     Load = data;                                                                        % Load Curve
-    T = T_amb+irr.*(T_nom-20)/0.8;                                                      % Calculating cell-temperature based on ambient temperature
+    T_cell = T_amb+irr.*(T_nom-20)/0.8;                                                 % Cell temperature as function of ambient temperature
      
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% PART 2
@@ -128,31 +128,32 @@ for year=loadCurve                                          % outer loop going t
     num_B = zeros(n_PV, n_B);
 
     % single battery simulation variable
-    SoC = zeros(1,size(Load,2));    % To save step-by-step SoC (State of Charge)
+    SoC = zeros(1,size(Load,2));    % to save step-by-step SoC (State of Charge)
 
     n = 0;
     % Plant simulation
     for PV_i = 1 : n_PV
         n = n + 1;
-        PVpower_i = min_PV + (PV_i - 1) * step_PV;                                      % iteration on PV power
-        EPV_array = irr .* PVpower_i .* (1 - coeff_T_pow .* (T - T_ref)) .* eta_BoS;    % array with Energy from the PV (EPV) for each time step throughout the year
-        batt_balance = EPV_array - Load / eta_inv;                                      % array with energy values for each time step throughout the year to be balanced at the battery level [kWh]  
+        PVpower_i = min_PV + (PV_i - 1) * step_PV;                      % iteration on PV power
+        eta_cell = 1 - coeff_T_pow .* (T_cell - T_ref);                 % Cell efficiency as function of temperature
+        P_pv = irr .* PVpower_i .* eta_cell .* eta_BoS;                 % array with Energy from the PV (EPV) for each time step throughout the year
+        batt_balance = Load / eta_inv - P_pv;                           % Array containing the power balance of the battery for each time step throughout the year (negative value is charging battery) [kWh]
         for B_i = 1 : n_B
             Bcap_i = min_B + (B_i - 1) * step_B;                        % iteration on Batt. capacity
-            EPV(PV_i, B_i) = sum(EPV_array, 2);                         % computing EPV value
+            EPV(PV_i, B_i) = sum(P_pv, 2);                              % computing EPV value
             SoC(1, 1) = SoC_start;                                      % setting initial state of charge
             Pow_max = batt_ratio * Bcap_i;                              % maximum power acceptable by the battery
             Den_rainflow = 0;
             for k = 1 : size(Load,2)                                    % simulation throughout the year
                 if k > 8
-                    if batt_balance(1, k-1) < 0 && batt_balance(1, k-2) < 0 && batt_balance(1, k-3) < 0 && batt_balance(1, k-4) < 0 && batt_balance(1, k-5) < 0 && batt_balance(1, k-6) < 0 && batt_balance(1, k-7) < 0 && batt_balance(1, k-8) < 0 && batt_balance(1, k) > 0 
+                    if batt_balance(1, k-1) > 0 && batt_balance(1, k-2) > 0 && batt_balance(1, k-3) > 0 && batt_balance(1, k-4) > 0 && batt_balance(1, k-5) > 0 && batt_balance(1, k-6) > 0 && batt_balance(1, k-7) > 0 && batt_balance(1, k-8) > 0 && batt_balance(1, k) < 0 
                        DOD = 1 - SoC(k);
                        cycles_failure = CyclesToFailure(DOD);
                        Den_rainflow = Den_rainflow + 1/(cycles_failure);
                     end
                 end
-                if batt_balance(1, k) > 0                                   % charging battery
-                    EB_flow = batt_balance(1, k) * eta_char;                % [kWh] to the battery
+                if batt_balance(1, k) < 0                                   % charging battery
+                    EB_flow = batt_balance(1, k) * eta_char;                % [kWh] to the battery % todo this is now negative 
                     PB_flow = (EB_flow / eta_char);
                     if PB_flow > Pow_max && SoC(1, k) < 1                   % checking the battery power limit
                         EB_flow = Pow_max * eta_char;
@@ -165,7 +166,7 @@ for year=loadCurve                                          % outer loop going t
                     end
                 else
                     % discharging battery
-                    EB_flow = batt_balance(1, k) / eta_disch;                           % [kWh] from the battery
+                    EB_flow = batt_balance(1, k) / eta_disch;                           % [kWh] from the battery %todo this is now positive
                     PB_flow = (abs(EB_flow) * eta_disch);
                     if PB_flow > Pow_max && SoC(1, k) > SoC_min                         % checking the battery power limit
                         EB_flow = Pow_max / eta_disch;

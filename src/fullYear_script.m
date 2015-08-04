@@ -70,41 +70,41 @@ P_pv= irr.*eta_cell.*P_syst_des*eta_BoS;    % Power produced by the PV-installat
 %% Power balance
 % Here follows the calculation of the power-balance of the system
 
-batt_balance=Load/eta_inv-P_pv;             % Array containing the power balance of the battery (negative value is charging battery)
+batt_balance=Load/eta_inv-P_pv;             % Array containing the power balance of the battery for each time step throughout the year (negative value is charging battery) [kWh]
 
 for i=2:length(irr)
     
     % Charging the battery
-        if batt_balance(i)<0                                                % PV-production is larger than Load. Battery will be charged
-            EB_flow=batt_balance(i)*eta_char;                               % Energy flow to the battery, including losses in charging
-            if (SoC(i-1)-batt_balance(i)/E_batt_nom)>1                      % SoC at n-1 + power charging will exceed battery capacity limit
-                ELPV(i)=E_batt(i-1)-batt_balance(i)-E_batt_nom;             % Power not being utilized is the amount of power not charged to the battery, and must be dumped
-                batt_balance(i)=E_batt(i-1)-E_batt_nom;                     % Updating batt_balance to actual amount charged
-            E_batt(i)=E_batt_nom;                                           % Battery is full, thus energy stored=max energy in batt
-            SoC(i)=E_batt(i)/E_batt_nom;                                    % SoC will be 1
-            else %(SoC(i-1)-batt_balance(i)/E_batt_nom)<=1                  % Sufficient room in battery
+    if batt_balance(i)<0                                                % PV-production is larger than Load. Battery will be charged
+        EB_flow=batt_balance(i)*eta_char;                               % Energy flow to the battery, including losses in charging
+        if (SoC(i-1)-batt_balance(i)/E_batt_nom)>1                      % SoC at n-1 + power charging will exceed battery capacity limit
+            ELPV(i)=E_batt(i-1)-batt_balance(i)-E_batt_nom;             % Power not being utilized is the amount of power not charged to the battery, and must be dumped
+            batt_balance(i)=E_batt(i-1)-E_batt_nom;                     % Updating batt_balance to actual amount charged
+            E_batt(i)=E_batt_nom;                                       % Battery is full, thus energy stored=max energy in batt
+            SoC(i)=E_batt(i)/E_batt_nom;                                % SoC will be 1
+        else %(SoC(i-1)-batt_balance(i)/E_batt_nom)<=1                  % Sufficient room in battery
             E_batt(i)=E_batt(i-1)-EB_flow;
             SoC(i)=E_batt(i)/E_batt_nom;
         end
     end
         
     % Discharging the battery
-        if batt_balance(i)>0                                                % PV production is lower than Load consumption
-            EB_flow=batt_balance(i)/eta_disch;                              % Energy flow from the battery, including losses in discharging
-        if (SoC(i-1)-EB_flow/E_batt_nom) >=SoC_min                          % Sufficient power in battery
-                E_batt(i)=E_batt(i-1)-batt_balance(i);
+    if batt_balance(i)>0                                                % PV production is lower than Load consumption
+        EB_flow=batt_balance(i)/eta_disch;                              % Energy flow from the battery, including losses in discharging
+        if (SoC(i-1)-EB_flow/E_batt_nom) >=SoC_min                      % Sufficient power in battery
+            E_batt(i)=E_batt(i-1)-batt_balance(i);
             SoC(i)=E_batt(i)/E_batt_nom;
-            else  % (SoC(i-1)-batt_balance(i)/E_batt_nom)<SoC_min           % Not enough power in battery
-            E_batt(i)=E_batt(i-1)-EB_flow;                                  % Energy in battery without SoC limit (only for calculation purpose)
-            SoC(i)=E_batt(i)/E_batt_nom;                                    % SoC in battery without limit (only for calculation purpose)
-            LL(i)=E_batt(i)-E_batt_nom*SoC_min;                             % Lost power, power not delivered to the Load
-            E_batt(i)=E_batt_nom*SoC_min;                                   % Updating to real energy in battery
-            SoC(i)=SoC_min;                                                 % Updating to real SoC in battery
-                batt_balance(i)=(SoC(i-1)-SoC(i))*E_batt_nom;
+        else  % (SoC(i-1)-batt_balance(i)/E_batt_nom)<SoC_min           % Not enough power in battery
+            E_batt(i)=E_batt(i-1)-EB_flow;                              % Energy in battery without SoC limit (only for calculation purpose)
+            SoC(i)=E_batt(i)/E_batt_nom;                                % SoC in battery without limit (only for calculation purpose)
+            LL(i)=E_batt(i)-E_batt_nom*SoC_min;                         % Lost power, power not delivered to the Load
+            E_batt(i)=E_batt_nom*SoC_min;                               % Updating to real energy in battery
+            SoC(i)=SoC_min;                                             % Updating to real SoC in battery
+            batt_balance(i)=(SoC(i-1)-SoC(i))*E_batt_nom;
         end
     end
 
-        if batt_balance==0;         % No power exchanged with the battery
+    if batt_balance==0;             % No power exchanged with the battery
         E_batt(i)=E_batt(i-1);      % Energy stored in battery remains the same
         SoC(i)=SoC(i-1);            % State of Charge remains the same
     end
