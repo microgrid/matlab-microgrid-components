@@ -44,12 +44,12 @@ tic
 x_llp=linspace(1,20,20);                                    % range of LLP_target (Loss of Load Probability) in [%]
 loadCurve=[100];                                            % number of data sets
 makePlot=0;                                                 % set to 1 if plots are desired
-colomns=length(loadCurve)*6;
-MA_opt_norm_bhut_jun15_20_10=zeros(length(x_llp),colomns);  % initialization of the optimal-solution matrix
+columns=length(loadCurve)*6;
+MA_opt_norm_bhut_jun15_20_10=zeros(length(x_llp),columns);  % initialization of the optimal-solution matrix
 counter=0;
     
 % tags={'LLP_opt', 'NPC', 'PV opt', 'Bat_opt', 'LCoE'};
-for year=loadCurve              % outer loop going through all the different data sets
+for year=loadCurve                                          % outer loop going through all the different data sets
     
     clearvars -except x_llp a_x makePlot MA_opt_norm_bhut_jun15_20_10 year loadCurve counter
 
@@ -58,40 +58,40 @@ for year=loadCurve              % outer loop going through all the different dat
     % load(filename, variable_name)    
     load('solar_data_Phuntsholing_baseline.mat', 'solar_data_Phuntsholing_baseline')    % Average hourly global radiation (beam + diffuse) incident on the PV array [kW/m2]. Due to the simulation step [1h], this is also [kWh/m2]
     % load('Tcell_Soroti_h_year.mat', 'Tcell_Soroti_h_year')                            % Cell Temperature [°C]
-    PVgr = solar_data_Phuntsholing_baseline;
+    irr = solar_data_Phuntsholing_baseline;
     filename=(['LoadCurve_normalized_single_3percent_',num2str(year),'.mat'])
     data=importdata(filename);                                                          % Import load data 
-    t_amb=importdata('surface_temp_phuent_2004_hour.mat');                              % Import ambient temperature data
-    NOCT=47;                                                                            % Nominal Operating Cell Temperature [°C]
-    LC = data;                                                                          % Load Curve
-    T = t_amb+PVgr.*(NOCT-20)/0.8;                                                      % Calculating cell-temperature based on ambient temperature
+    T_amb=importdata('surface_temp_phuent_2004_hour.mat');                              % Import ambient temperature data
+    T_nom=47;                                                                           % Nominal Operating Cell Temperature [°C]
+    Load = data;                                                                        % Load Curve
+    T = T_amb+irr.*(T_nom-20)/0.8;                                                      % Calculating cell-temperature based on ambient temperature
      
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% PART 2
     % SYSTEM COMPONENTS INPUT DATA
 
     % PV array
-    BOS = 0.85;                 % Balance Of System: account for such factors as soiling of the panels, wiring losses, shading, snow cover, aging, and so on
-    Trif = 25;                  % Test Temperature
+    eta_BoS = 0.85;             % Balance Of System: account for such factors as soiling of the panels, wiring losses, shading, snow cover, aging, and so on
+    T_ref = 25;                 % Nominal ambient test-temperature of the panels [C]
     coeff_T_pow = 0.004;        % Derating of panel's power due to temperature
 
     % Battery
-    minSOC = 0.4;               % minimum allowed State Of Charge
-    SOC_start = 1;              % setting initial State Of Charge
-    CH_eff = 0.85;              % charge efficiency
-    DISCH_eff = 0.9;            % discharge efficiency
-    cycl_B_minSOC = 2000;       % number of charge/discharge battery cycle
+    SoC_min = 0.4;              % minimum allowed State Of Charge
+    SoC_start = 1;              % setting initial State Of Charge
+    eta_char = 0.85;            % charge efficiency
+    eta_disch = 0.9;            % discharge efficiency
+    cycl_B_SoC_min = 2000;      % number of charge/discharge battery cycle
     max_y_repl = 5;             % maximum year before battery replacement
-    B_PE_ratio = 0.5;           % ratio power / energy of the battery
+    batt_ratio = 0.5;           % ratio power / energy of the battery
 
     % Inverter
-    INV_eff = 0.9;              % inverter efficiency
+    eta_inv = 0.9;              % inverter efficiency
 
     % Economics
     costPV = 1000;              % PV panel cost [€/kW] (source: Uganda data)
     costINV = 500;              % Inverter cost [€/kW] (source: MCM_Energy Lab + prof. Silva exercise, POLIMI)
     costOeM_spec = 50;          % O&M cost for the overall plant [€/kW*year] (source: MCM_Energy Lab)
-    coeff_cost_BOSeI = 0.2;     % Installation and BOS cost as % of cost of PV+B+Inv [% of Investment cost] (source: Masters, “Renewable and Efficient Electric Power Systems,”)
+    coeff_cost_BoSeI = 0.2;     % Installation and BoS cost as % of cost of PV+B+Inv [% of Investment cost] (source: Masters, “Renewable and Efficient Electric Power Systems,”)
 
     % Battery cost defined as: costB = costB_coef_a * battery_capacity [kWh] + costB_coef_b (source: Uganda data)
     costB_coef_a = 140;         %132.78;
@@ -128,53 +128,53 @@ for year=loadCurve              % outer loop going through all the different dat
     num_B = zeros(n_PV, n_B);
 
     % single battery simulation variable
-    SOC = zeros(1,size(LC,2));      % To save step-by-step SOC (State of Charge)
+    SoC = zeros(1,size(Load,2));    % To save step-by-step SoC (State of Charge)
 
     n = 0;
     % Plant simulation
     for PV_i = 1 : n_PV
         n = n + 1;
-        PVpower_i = min_PV + (PV_i - 1) * step_PV;                                  % iteration on PV power
-        EPV_array = PVgr .* PVpower_i .* (1 - coeff_T_pow .* (T - Trif)) .* BOS;    % array with Energy from the PV (EPV) for each time step throughout the year
-        Bbalance = EPV_array - LC / INV_eff;                                        % array with energy values for each time step throughout the year to be balanced at the battery level [kWh]  
+        PVpower_i = min_PV + (PV_i - 1) * step_PV;                                      % iteration on PV power
+        EPV_array = irr .* PVpower_i .* (1 - coeff_T_pow .* (T - T_ref)) .* eta_BoS;    % array with Energy from the PV (EPV) for each time step throughout the year
+        batt_balance = EPV_array - Load / eta_inv;                                          % array with energy values for each time step throughout the year to be balanced at the battery level [kWh]  
         for B_i = 1 : n_B
             Bcap_i = min_B + (B_i - 1) * step_B;                        % iteration on Batt. capacity
             EPV(PV_i, B_i) = sum(EPV_array, 2);                         % computing EPV value
-            SOC(1, 1) = SOC_start;                                      % setting initial state of charge
-            Pow_max = B_PE_ratio * Bcap_i;                              % maximum power acceptable by the battery
+            SoC(1, 1) = SoC_start;                                      % setting initial state of charge
+            Pow_max = batt_ratio * Bcap_i;                              % maximum power acceptable by the battery
             Den_rainflow = 0;
-            for k = 1 : size(LC,2)                                      % simulation throughout the year
+            for k = 1 : size(Load,2)                                    % simulation throughout the year
                 if k > 8
-                    if Bbalance(1, k-1) < 0 && Bbalance(1, k-2) < 0 && Bbalance(1, k-3) < 0 && Bbalance(1, k-4) < 0 && Bbalance(1, k-5) < 0 && Bbalance(1, k-6) < 0 && Bbalance(1, k-7) < 0 && Bbalance(1, k-8) < 0 && Bbalance(1, k) > 0 
-                       DOD = 1 - SOC(k);
+                    if batt_balance(1, k-1) < 0 && batt_balance(1, k-2) < 0 && batt_balance(1, k-3) < 0 && batt_balance(1, k-4) < 0 && batt_balance(1, k-5) < 0 && batt_balance(1, k-6) < 0 && batt_balance(1, k-7) < 0 && batt_balance(1, k-8) < 0 && batt_balance(1, k) > 0 
+                       DOD = 1 - SoC(k);
                        cycles_failure = CyclesToFailure(DOD);
                        Den_rainflow = Den_rainflow + 1/(cycles_failure);
                     end
                 end
-                if Bbalance(1, k) > 0                                   % charging battery
-                    EB_flow = Bbalance(1, k) * CH_eff;                  % [kWh] to the battery
-                    PB_flow = (EB_flow / CH_eff);
-                    if PB_flow > Pow_max && SOC(1, k) < 1               % checking the battery power limit
-                        EB_flow = Pow_max * CH_eff;
+                if batt_balance(1, k) > 0                                   % charging battery
+                    EB_flow = batt_balance(1, k) * eta_char;                % [kWh] to the battery
+                    PB_flow = (EB_flow / eta_char);
+                    if PB_flow > Pow_max && SoC(1, k) < 1               % checking the battery power limit
+                        EB_flow = Pow_max * eta_char;
                         ELPV(PV_i, B_i) = ELPV(PV_i, B_i) + (PB_flow - Pow_max);
                     end
-                    SOC(1, k+1) = SOC(1, k) + EB_flow / Bcap_i;
-                    if SOC(1, k+1) > 1
-                        ELPV(PV_i, B_i) = ELPV(PV_i, B_i) + (SOC(1, k+1) - 1) * Bcap_i / CH_eff;
-                        SOC(1, k+1) = 1;
+                    SoC(1, k+1) = SoC(1, k) + EB_flow / Bcap_i;
+                    if SoC(1, k+1) > 1
+                        ELPV(PV_i, B_i) = ELPV(PV_i, B_i) + (SoC(1, k+1) - 1) * Bcap_i / eta_char;
+                        SoC(1, k+1) = 1;
                     end
                 else
                     % discharging battery
-                    EB_flow = Bbalance(1, k) / DISCH_eff;                               % [kWh] from the battery
-                    PB_flow = (abs(EB_flow) * DISCH_eff);
-                    if PB_flow > Pow_max && SOC(1, k) > minSOC                          % checking the battery power limit
-                        EB_flow = Pow_max / DISCH_eff;
-                        LL(PV_i, B_i) = LL(PV_i, B_i) + (PB_flow - Pow_max) * INV_eff;  % computing numerator of LLP indicator
+                    EB_flow = batt_balance(1, k) / eta_disch;                               % [kWh] from the battery
+                    PB_flow = (abs(EB_flow) * eta_disch);
+                    if PB_flow > Pow_max && SoC(1, k) > SoC_min                         % checking the battery power limit
+                        EB_flow = Pow_max / eta_disch;
+                        LL(PV_i, B_i) = LL(PV_i, B_i) + (PB_flow - Pow_max) * eta_inv;  % computing numerator of LLP indicator
                     end
-                    SOC(1, k+1) = SOC(1, k) + EB_flow / Bcap_i;
-                    if SOC(1, k+1) < minSOC
-                        LL(PV_i, B_i) = LL(PV_i, B_i) + (minSOC - SOC(1, k+1)) * Bcap_i * DISCH_eff * INV_eff; % computing numerator of LLP indicator
-                        SOC(1, k+1) = minSOC;
+                    SoC(1, k+1) = SoC(1, k) + EB_flow / Bcap_i;
+                    if SoC(1, k+1) < SoC_min
+                        LL(PV_i, B_i) = LL(PV_i, B_i) + (SoC_min - SoC(1, k+1)) * Bcap_i * eta_disch * eta_inv; % computing numerator of LLP indicator
+                        SoC(1, k+1) = SoC_min;
                     end
                 end
             end
@@ -183,10 +183,10 @@ for year=loadCurve              % outer loop going through all the different dat
 
             % Investment cost
             costB = costB_coef_a * Bcap_i + costB_coef_b;                           % battery cost
-            Pmax = max(LC);                                                         % Peak Load
-            costI = (Pmax/INV_eff) * costINV;                                       % Inverter cost, inverter is designed on the peak power value
-            costBOSeI = coeff_cost_BOSeI * (costB + costI + costPV * PVpower_i);    % cost of Balance Of Systems and Installation
-            IC(PV_i,B_i) = costPV * PVpower_i + costB + costI + costBOSeI;          % Investment Cost
+            Pmax = max(Load);                                                       % Peak Load
+            costI = (Pmax/eta_inv) * costINV;                                       % Inverter cost, inverter is designed on the peak power value
+            costBoSeI = coeff_cost_BoSeI * (costB + costI + costPV * PVpower_i);    % cost of Balance Of Systems and Installation
+            IC(PV_i,B_i) = costPV * PVpower_i + costB + costI + costBoSeI;          % Investment Cost
             costOeM = costOeM_spec * PVpower_i;                                     % O&M & replacement present cost during plant lifespan
             y_rep_B = 1/Den_rainflow;
 
@@ -204,16 +204,16 @@ for year=loadCurve              % outer loop going through all the different dat
                 end
                 YC(PV_i,B_i) = YC(PV_i,B_i) + costOeM / ((1 + r_int)^k);            % computing present values of O&M
             end
-            YC(PV_i,B_i) = YC(PV_i,B_i) - costB * ( (cfr - VU) / y_rep_B ) / (1 + r_int)^(VU); % salvage due to battery life
-            YC(PV_i,B_i) = YC(PV_i,B_i) + costI / ((1 + r_int)^(VU / 2));           % considering present cost of inverter
+            YC(PV_i,B_i) = YC(PV_i,B_i) - costB * ( (cfr - VU) / y_rep_B ) / (1 + r_int)^(VU);  % salvage due to battery life
+            YC(PV_i,B_i) = YC(PV_i,B_i) + costI / ((1 + r_int)^(VU / 2));                       % considering present cost of inverter
         end
     end
 
     % Computing Indicators
     NPC = IC + YC;                                                          % Net Present Cost 
     CRF = (r_int * ((1 + r_int)^VU)) / (((1 + r_int)^VU) - 1);              % LCoE coefficient
-    LLP = LL / sum(LC, 2);                                                  % Loss of Load Probability
-    LCoE = (NPC * CRF)./((sum(LC, 2)).*(1 - LLP));                          % Levelized Cost of Energy
+    LLP = LL / sum(Load, 2);                                                % Loss of Load Probability
+    LCoE = (NPC * CRF)./((sum(Load, 2)).*(1 - LLP));                        % Levelized Cost of Energy
         
     save('results.mat')
 
