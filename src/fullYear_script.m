@@ -70,7 +70,7 @@ P_pv= irr.*eta_cell.*P_syst_des*eta_BoS;    % Power produced by the PV-installat
 %% Power balance
 % Here follows the calculation of the power-balance of the system
 
-    batt_balance=Load/eta_inv-P_pv;         % Array containing the power balance of the battery (negative value is charging battery)
+batt_balance=Load/eta_inv-P_pv;             % Array containing the power balance of the battery (negative value is charging battery)
 
 for i=2:length(irr)
     
@@ -110,12 +110,11 @@ for i=2:length(irr)
     end
 end
     
-   
-    prod_sum=P_pv+batt_balance;
+prod_sum=P_pv+batt_balance;
 
 toc % End timer
 
-    batt_balance_pos=subplus(batt_balance);     % batt_balance_pos becomes a vector only containing positive values in batt_balance. Negative values=0
+batt_balance_pos=subplus(batt_balance);         % batt_balance_pos becomes a vector only containing positive values in batt_balance. Negative values=0
 abs(sum(LL)/sum(Load))                          % Finds percentage of Load not served
 length(LL(find(LL<0)))/length(LL)               % Loss of Load probability, how many hours are without power
 
