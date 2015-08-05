@@ -94,8 +94,8 @@ for year=loadCurve                                          % outer loop going t
     coeff_cost_BoSeI = 0.2;     % Installation and BoS cost as % of cost of PV+B+Inv [% of Investment cost] (source: Masters, “Renewable and Efficient Electric Power Systems,”)
 
     % Battery cost defined as: costB = costB_coef_a * battery_capacity [kWh] + costB_coef_b (source: Uganda data)
-    costB_coef_a = 140;         %132.78;
-    costB_coef_b = 0;
+    costB_coef_a = 140;         % variable cost [per kWh]  %132.78;
+    costB_coef_b = 0;           % fixed cost
     VU = 20;                    % plant lifetime [year] 
     r_int = 0.06;               % rate of interest defined as (HOMER) = nominal rate - inflation
 
@@ -122,7 +122,7 @@ for year=loadCurve                                          % outer loop going t
     % Declaration of simulation variables
     EPV = zeros(n_PV, n_B);         % Energy PV (EPV): yearly energy produced by the PV array [kWh]
     ELPV = zeros(n_PV, n_B);        % Energy Loss PV (ELPV): yearly energy produced by the PV array not exploited (i.e. dissipated energy) [kWh]
-    LL = zeros(n_PV, n_B);          % Energy not provided to the load: Loss of Load (LL) [kWh]
+    LL = zeros(n_PV, n_B);          % Energy not provided to the load: Loss of Load (LL) per time period [kWh]
     IC = zeros(n_PV, n_B);          % Investment Cost (IC)
     YC = zeros(n_PV, n_B);          % O&M & replacement present cost
     num_B = zeros(n_PV, n_B);
@@ -160,35 +160,34 @@ for year=loadCurve                                          % outer loop going t
 
                 % charging the battery
                 if batt_balance(1, t) < 0                               % PV-production is larger than Load. Battery will be charged
-                    EB_flow = batt_balance(1, t) * eta_char;            % energy flow to the battery, including losses in charging % todo this is now negative -> important for e.g. plots?
-                    PB_flow = (EB_flow / eta_char);
-                    if PB_flow > Pow_max && SoC(1, t) < 1               % checking that the battery can be charged
+                    PB_flow = batt_balance(1, t);                       % energy flow to the battery (negative number since charging)
+                    EB_flow = batt_balance(1, t) * eta_char;            % energy flow that will be stored in the battery i.e. including losses in charging [kWh]    % todo this is now negative -> important for plots?
+                    if (abs(PB_flow)) > Pow_max && SoC(1, t) < 1        % in-flow exceeds the battery power limit
                         EB_flow = Pow_max * eta_char;
-                        ELPV(PV_i, B_i) = ELPV(PV_i, B_i) + (PB_flow - Pow_max);
+                        ELPV(PV_i, B_i) = ELPV(PV_i, B_i) + (abs(PB_flow)- Pow_max);
                     end
-                    SoC(1, t+1) = SoC(1, t) + EB_flow / Bcap_i;
+                    SoC(1, t+1) = SoC(1, t) + abs(EB_flow) / Bcap_i;
                     if SoC(1, t+1) > 1
                         ELPV(PV_i, B_i) = ELPV(PV_i, B_i) + (SoC(1, t+1) - 1) * Bcap_i / eta_char;
                         SoC(1, t+1) = 1;
                     end
                 else
                     % discharging the battery
-                    EB_flow = batt_balance(1, t) / eta_disch;                           % [kWh] from the battery %todo this is now positive -> important for e.g. plots?
-                    PB_flow = (abs(EB_flow) * eta_disch);
+                    PB_flow = batt_balance(1, t);                                       % energy flow from the battery (positive number since discharging)
+                    EB_flow = batt_balance(1, t) / eta_disch;                           % total energy flow from the battery i.e. including losses in charging [kWh]    %todo this is now positive -> important for plots?
                     if PB_flow > Pow_max && SoC(1, t) > SoC_min                         % checking the battery power limit
                         EB_flow = Pow_max / eta_disch;
-                        LL(PV_i, B_i) = LL(PV_i, B_i) + (PB_flow - Pow_max) * eta_inv;  % computing numerator of LLP indicator
+                        LL(PV_i, B_i) = LL(PV_i, B_i) + (PB_flow - Pow_max) * eta_inv;  % adding the part to LL (Loss of Load) due to exceeding the battery discharging speed
                     end
-                    SoC(1, t+1) = SoC(1, t) + EB_flow / Bcap_i;
+                    SoC(1, t+1) = SoC(1, t) - EB_flow / Bcap_i;
                     if SoC(1, t+1) < SoC_min
-                        LL(PV_i, B_i) = LL(PV_i, B_i) + (SoC_min - SoC(1, t+1)) * Bcap_i * eta_disch * eta_inv; % computing numerator of LLP indicator
+                        LL(PV_i, B_i) = LL(PV_i, B_i) + (SoC_min - SoC(1, t+1)) * Bcap_i * eta_disch * eta_inv; % adding the part to LL (Loss of Load) due to not enough energy in battery (using that battery must stay at SoC_min)
                         SoC(1, t+1) = SoC_min;
                     end
                 end
             end
 
-            % Economic Analysis
-
+            %% Economic Analysis
             % Investment cost
             costB = costB_coef_a * Bcap_i + costB_coef_b;                           % battery cost
             Pmax = max(Load);                                                       % Peak Load
