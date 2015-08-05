@@ -91,12 +91,12 @@ for year=loadCurve                                          % outer loop going t
     costPV = 1000;              % PV panel cost [€/kW] (source: Uganda data)
     costINV = 500;              % Inverter cost [€/kW] (source: MCM_Energy Lab + prof. Silva exercise, POLIMI)
     costOeM_spec = 50;          % O&M cost for the overall plant [€/kW*year] (source: MCM_Energy Lab)
-    coeff_cost_BoSeI = 0.2;     % Installation and BoS cost as % of cost of PV+B+Inv [% of Investment cost] (source: Masters, “Renewable and Efficient Electric Power Systems,”)
+    coeff_cost_BoSeI = 0.2;     % Installation (I) and BoS cost as % of cost of PV+battery+Inv [% of Investment cost] (source: Masters, “Renewable and Efficient Electric Power Systems,”)
 
-    % Battery cost defined as: costB = costB_coef_a * battery_capacity [kWh] + costB_coef_b (source: Uganda data)
-    costB_coef_a = 140;         % variable cost [per kWh]  %132.78;
-    costB_coef_b = 0;           % fixed cost
-    VU = 20;                    % plant lifetime [year] 
+    % Battery cost defined as: costBatt_tot = costBatt_coef_a * battery_capacity [kWh] + costBatt_coef_b (source: Uganda data)
+    costBatt_coef_a = 140;      % variable cost [per kWh]  %132.78;
+    costBatt_coef_b = 0;        % fixed cost
+    LT = 20;                    % plant LifeTime [year] 
     r_int = 0.06;               % rate of interest defined as (HOMER) = nominal rate - inflation
 
     % Simulation input data
@@ -125,7 +125,7 @@ for year=loadCurve                                          % outer loop going t
     LL = zeros(n_PV, n_B);          % Energy not provided to the load: Loss of Load (LL) per time period [kWh]
     IC = zeros(n_PV, n_B);          % Investment Cost (IC)
     YC = zeros(n_PV, n_B);          % O&M & replacement present cost
-    num_B = zeros(n_PV, n_B);
+    num_batt = zeros(n_PV, n_B);    % number of batteries employed due to lifetime limit
 
     % single battery simulation variable
     SoC = zeros(1,size(Load,2));    % to save step-by-step SoC (State of Charge)
@@ -189,36 +189,34 @@ for year=loadCurve                                          % outer loop going t
 
             %% Economic Analysis
             % Investment cost
-            costB = costB_coef_a * Bcap_i + costB_coef_b;                           % battery cost
-            Pmax = max(Load);                                                       % Peak Load
-            costI = (Pmax/eta_inv) * costINV;                                       % Inverter cost, inverter is designed on the peak power value
-            costBoSeI = coeff_cost_BoSeI * (costB + costI + costPV * PVpower_i);    % cost of Balance Of Systems and Installation
-            IC(PV_i,B_i) = costPV * PVpower_i + costB + costI + costBoSeI;          % Investment Cost
-            costOeM = costOeM_spec * PVpower_i;                                     % O&M & replacement present cost during plant lifespan
-            y_rep_B = 1/Den_rainflow;
-
-            if y_rep_B > max_y_repl
-               y_rep_B =  max_y_repl;
+            costBatt_tot = costBatt_coef_a * Bcap_i + costBatt_coef_b;                  % battery cost
+            peak = max(Load);                                                           % peak Load
+            costINV_tot = (peak/eta_inv) * costINV;                                     % inverter cost, inverter is designed on the peak power value
+            costPV_tot = costPV * PVpower_i;
+            costBoSeI = coeff_cost_BoSeI * (costBatt_tot + costINV_tot + costPV_tot);   % cost of Balance of Systems (BoS) and Installation
+            IC(PV_i,B_i) = costPV_tot + costBatt_tot + costINV_tot + costBoSeI;         % Investment Cost (IC)
+            costOeM = costOeM_spec * PVpower_i;                                         % O&M (maintenance) & replacement present cost during plant lifespan
+            y_rep_batt = 1/Den_rainflow;                                                % batteries should be replaced after this number of years
+            if y_rep_batt > max_y_repl
+               y_rep_batt =  max_y_repl;
             end
+            num_batt(PV_i,B_i) = ceil(LT / y_rep_batt);
 
-            num_B(PV_i,B_i) = ceil(VU / y_rep_B);
-            cfr = y_rep_B;
-
-            for k = 1 : VU
-                if k > cfr
-                    YC(PV_i,B_i) = YC(PV_i,B_i) + costB / ((1 + r_int)^cfr);        % computing present values of battery
-                    cfr = cfr + y_rep_B;
+            for k = 1 : LT
+                if k > y_rep_batt
+                    YC(PV_i,B_i) = YC(PV_i,B_i) + costBatt_tot / ((1 + r_int)^y_rep_batt);                      % computing present values of battery
+                    y_rep_batt = y_rep_batt + y_rep_batt;
                 end
-                YC(PV_i,B_i) = YC(PV_i,B_i) + costOeM / ((1 + r_int)^k);            % computing present values of O&M
+                YC(PV_i,B_i) = YC(PV_i,B_i) + costOeM / ((1 + r_int)^k);                                        % computing present values of O&M
             end
-            YC(PV_i,B_i) = YC(PV_i,B_i) - costB * ( (cfr - VU) / y_rep_B ) / (1 + r_int)^(VU);  % salvage due to battery life
-            YC(PV_i,B_i) = YC(PV_i,B_i) + costI / ((1 + r_int)^(VU / 2));                       % considering present cost of inverter
+            YC(PV_i,B_i) = YC(PV_i,B_i) - costBatt_tot * ( (y_rep_batt - LT) / y_rep_batt ) / (1 + r_int)^(LT); % salvage due to battery life i.e. estimating how much the batteries are worth after the lifetime of the system
+            YC(PV_i,B_i) = YC(PV_i,B_i) + costINV_tot / ((1 + r_int)^(LT / 2));                                 % cost of replacing inverter. Assumption: lifetime inverter is half of lifetime system LT
         end
     end
 
     % Computing Indicators
     NPC = IC + YC;                                                          % Net Present Cost 
-    CRF = (r_int * ((1 + r_int)^VU)) / (((1 + r_int)^VU) - 1);              % LCoE coefficient
+    CRF = (r_int * ((1 + r_int)^LT)) / (((1 + r_int)^LT) - 1);              % LCoE coefficient
     LLP = LL / sum(Load, 2);                                                % Loss of Load Probability
     LCoE = (NPC * CRF)./((sum(Load, 2)).*(1 - LLP));                        % Levelized Cost of Energy
         
@@ -275,7 +273,7 @@ for year=loadCurve                                          % outer loop going t
             ylabel('PV array size [kW]');
 
             figure(4);
-            mesh(min_B : step_B : max_B , min_PV : step_PV : max_PV , num_B);
+            mesh(min_B : step_B : max_B , min_PV : step_PV : max_PV , num_batt);
             title('Num. of battery employed due to lifetime limit');
             set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
             xlabel('Battery Bank size [kWh]');
