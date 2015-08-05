@@ -114,7 +114,7 @@ prod_sum=P_pv+batt_balance;
 
 toc % End timer
 
-batt_balance_pos=subplus(batt_balance);         % batt_balance_pos becomes a vector only containing positive values in batt_balance. Negative values=0
+batt_balance_pos=subplus(batt_balance);         % batt_balance_pos becomes a vector only containing positive values in batt_balance i.e. only interested in when discharging. Negative values=0
 abs(sum(LL)/sum(Load))                          % Finds percentage of Load not served
 length(LL(find(LL<0)))/length(LL)               % Loss of Load probability, how many hours are without power
 
@@ -129,8 +129,8 @@ plot(P_pv,'Color',[255 192 33]/255)
 hold on
 plot(batt_balance_pos,'Color',[178 147 68]/255)
 hold off
-xlabel('Time over the year')
-ylabel('Energy in kWh')
+xlabel('Time over the year [hour]')
+ylabel('Energy [kWh]')
 title('Energy produced and estimated load profile over the year')
 legend('Load profile','Energy from PV', 'Energy flow in battery')
 
@@ -142,7 +142,7 @@ plot(LL./E_batt_nom+SoC_min,'Color',[255 91 60]/255)
 hold on
 plot(ELPV./E_batt_nom+1,'Color',[142 178 68]/255)
 hold off
-xlabel('Time over the year')
+xlabel('Time over the year [hour]')
 ylabel('Power refered to State of Charge of the battery')
 legend('State of charge', 'Loss of power', 'Overproduction, not utilized')
 path='/Users/hakon/Dropbox/Master_i_skyen/Thesis/Figures/Chap3';

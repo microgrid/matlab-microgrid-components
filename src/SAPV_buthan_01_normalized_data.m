@@ -41,28 +41,28 @@ close all
 beep off
 tic
 % LLP_target = input('Required maximum accepted value of LLP [%]: ') / 100; % enter user defined targeted value of LLP (Loss of Load Probability)
-x_llp=linspace(1,20,20);                                    % range of LLP_target (Loss of Load Probability) in [%]
-loadCurve=[100];                                            % number of data sets
-makePlot=0;                                                 % set to 1 if plots are desired
-columns=length(loadCurve)*6;
-MA_opt_norm_bhut_jun15_20_10=zeros(length(x_llp),columns);  % initialization of the optimal-solution matrix
-counter=0;
+x_llp = linspace(1,20,20);                                    % range of LLP_target (Loss of Load Probability) in [%]
+loadCurve = [100];                                            % number of data sets
+makePlot = 0;                                                 % set to 1 if plots are desired
+columns = length(loadCurve) * 6;                              % since we will be interested in 6 variables at the end
+MA_opt_norm_bhut_jun15_20_10 = zeros(length(x_llp), columns); % initialization of the optimal-solution matrix
+counter = 0;                                                  % counter for the number of load curves
     
-% tags={'LLP_opt', 'NPC', 'PV opt', 'Bat_opt', 'LCoE'};
-for year=loadCurve                                          % outer loop going through all the different data sets
+% tags = {'LLP_opt', 'NPC', 'PV opt', 'Bat_opt', 'LCoE'};
+for year = loadCurve                                          % outer loop going through all the different data sets
     
     clearvars -except x_llp a_x makePlot MA_opt_norm_bhut_jun15_20_10 year loadCurve counter
 
-    counter=counter+1;
+    counter = counter + 1;
             
     % load(filename, variable_name)    
     load('solar_data_Phuntsholing_baseline.mat', 'solar_data_Phuntsholing_baseline')    % Average hourly global radiation (beam + diffuse) incident on the PV array [kW/m2]. Due to the simulation step [1h], this is also [kWh/m2]
     % load('Tcell_Soroti_h_year.mat', 'Tcell_Soroti_h_year')                            % Cell Temperature [°C]
     irr = solar_data_Phuntsholing_baseline;
-    filename=(['LoadCurve_normalized_single_3percent_',num2str(year),'.mat'])
-    data=importdata(filename);                                                          % Import load data 
-    T_amb=importdata('surface_temp_phuent_2004_hour.mat');                              % Import ambient temperature data
-    T_nom=47;                                                                           % Nominal Operating Cell Temperature [°C]
+    filename = (['LoadCurve_normalized_single_3percent_',num2str(year),'.mat'])
+    data = importdata(filename);                                                        % Import load data 
+    T_amb = importdata('surface_temp_phuent_2004_hour.mat');                            % Import ambient temperature data
+    T_nom = 47;                                                                         % Nominal Operating Cell Temperature [°C]
     Load = data;                                                                        % Load Curve
     T_cell = T_amb+irr.*(T_nom-20)/0.8;                                                 % Cell temperature as function of ambient temperature
      
@@ -90,7 +90,7 @@ for year=loadCurve                                          % outer loop going t
     % Economics
     costPV = 1000;              % PV panel cost [€/kW] (source: Uganda data)
     costINV = 500;              % Inverter cost [€/kW] (source: MCM_Energy Lab + prof. Silva exercise, POLIMI)
-    costOeM_spec = 50;          % O&M cost for the overall plant [€/kW*year] (source: MCM_Energy Lab)
+    costOeM_spec = 50;          % Operations & Maintenance cost for the overall plant [€/kW*year] (source: MCM_Energy Lab)
     coeff_cost_BoSeI = 0.2;     % Installation (I) and BoS cost as % of cost of PV+battery+Inv [% of Investment cost] (source: Masters, “Renewable and Efficient Electric Power Systems,”)
 
     % Battery cost defined as: costBatt_tot = costBatt_coef_a * battery_capacity [kWh] + costBatt_coef_b (source: Uganda data)
@@ -124,7 +124,7 @@ for year=loadCurve                                          % outer loop going t
     ELPV = zeros(n_PV, n_B);        % Energy Loss PV (ELPV): yearly energy produced by the PV array not exploited (i.e. dissipated energy) [kWh]
     LL = zeros(n_PV, n_B);          % Energy not provided to the load: Loss of Load (LL) per time period [kWh]
     IC = zeros(n_PV, n_B);          % Investment Cost (IC)
-    YC = zeros(n_PV, n_B);          % O&M & replacement present cost
+    YC = zeros(n_PV, n_B);          % Operations & Maintenance & replacement; present cost
     num_batt = zeros(n_PV, n_B);    % number of batteries employed due to lifetime limit
 
     % single battery simulation variable
@@ -195,7 +195,7 @@ for year=loadCurve                                          % outer loop going t
             costPV_tot = costPV * PVpower_i;
             costBoSeI = coeff_cost_BoSeI * (costBatt_tot + costINV_tot + costPV_tot);   % cost of Balance of Systems (BoS) and Installation
             IC(PV_i,B_i) = costPV_tot + costBatt_tot + costINV_tot + costBoSeI;         % Investment Cost (IC)
-            costOeM = costOeM_spec * PVpower_i;                                         % O&M (maintenance) & replacement present cost during plant lifespan
+            costOeM = costOeM_spec * PVpower_i;                                         % Operations & Maintenance & replacement present cost during plant lifespan
             y_rep_batt = 1/Den_rainflow;                                                % batteries should be replaced after this number of years
             if y_rep_batt > max_y_repl
                y_rep_batt =  max_y_repl;
@@ -207,7 +207,7 @@ for year=loadCurve                                          % outer loop going t
                     YC(PV_i,B_i) = YC(PV_i,B_i) + costBatt_tot / ((1 + r_int)^y_rep_batt);                      % computing present values of battery
                     y_rep_batt = y_rep_batt + y_rep_batt;
                 end
-                YC(PV_i,B_i) = YC(PV_i,B_i) + costOeM / ((1 + r_int)^k);                                        % computing present values of O&M
+                YC(PV_i,B_i) = YC(PV_i,B_i) + costOeM / ((1 + r_int)^k);                                        % computing present values of Operations & Maintenance
             end
             YC(PV_i,B_i) = YC(PV_i,B_i) - costBatt_tot * ( (y_rep_batt - LT) / y_rep_batt ) / (1 + r_int)^(LT); % salvage due to battery life i.e. estimating how much the batteries are worth after the lifetime of the system
             YC(PV_i,B_i) = YC(PV_i,B_i) + costINV_tot / ((1 + r_int)^(LT / 2));                                 % cost of replacing inverter. Assumption: lifetime inverter is half of lifetime system LT
@@ -217,40 +217,41 @@ for year=loadCurve                                          % outer loop going t
     % Computing Indicators
     NPC = IC + YC;                                                          % Net Present Cost 
     CRF = (r_int * ((1 + r_int)^LT)) / (((1 + r_int)^LT) - 1);              % LCoE coefficient
-    LLP = LL / sum(Load, 2);                                                % Loss of Load Probability
-    LCoE = (NPC * CRF)./((sum(Load, 2)).*(1 - LLP));                        % Levelized Cost of Energy
+    LLP = LL / sum(Load, 2);                                                % Loss of Load Probability w.r.t. total load
+    LCoE = (NPC * CRF)./(sum(Load, 2) - LL);                                % Levelized Cost of Energy i.e. cost per kWh (here in €) of building and operating the plant over an assumed life cycle
         
     save('results.mat')
 
-    for a_x=1:length(x_llp) 
-        LLP_target=x_llp(a_x)/100;
+    % iterate over Loss of Load Probabilities (LLP)
+    for a_x = 1 : length(x_llp) 
+        LLP_target = x_llp(a_x)/100;                                        % gives LLP in [%] 
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% PART 5
         % LOOKING FOR THE OPTIMUM PLANT AS REGARDS THE TARGETED LLP
 
-        LLP_var = 0.005;                                                                        % accepted error band near targeted LLP value
-        [posPV, posB] = find( (LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var) );    % find systems with targeted LLP (within error band)
-        NPC_opt = min( diag(NPC(posPV, posB)) );                                                % find minimum NPC for the target LLP;
+        LLP_var = 0.005;                                                                            % accepted error band near targeted LLP value
+        [posPV, posBatt] = find( (LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var) );     % find possible systems with targeted LLP (within error band). Recall that LLP is a (n_PV x n_B)-matrix. Example of this syntax: http://se.mathworks.com/help/matlab/ref/find.html#budq84b-1
+        NPC_opt = min( diag(NPC(posPV, posBatt)) );                                                 % finds the system within the targeted set that has the minimal NPC
         
         for i = 1 : size(posPV, 1)
-            if NPC(posPV(i), posB(i)) == NPC_opt
+            if NPC(posPV(i), posBatt(i)) == NPC_opt
                 PV_opt = posPV(i);
-                B_opt = posB(i);
+                Batt_opt = posBatt(i);
             end
         end
 
-        kW_opt = (PV_opt-1) * step_PV + min_PV;
-        kWh_opt = (B_opt-1) * step_B + min_B;
-        LLP_opt = LLP(PV_opt, B_opt)
-        LCoE_opt = LCoE(PV_opt, B_opt);
-        IC_opt=IC(PV_opt, B_opt);
+        kW_opt = (PV_opt - 1) * step_PV + min_PV;
+        kWh_opt = (Batt_opt - 1) * step_B + min_B;
+        LLP_opt = LLP(PV_opt, Batt_opt)
+        LCoE_opt = LCoE(PV_opt, Batt_opt);
+        IC_opt = IC(PV_opt, Batt_opt);
 
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% PART 6
         % PLOTTING
 
-        if makePlot==1
+        if makePlot == 1
             figure(1);
             mesh(min_B : step_B : max_B , min_PV : step_PV : max_PV , NPC);
             title('Net Present Cost');
@@ -267,7 +268,7 @@ for year=loadCurve                                          % outer loop going t
 
             figure(3);
             mesh(min_B : step_B : max_B , min_PV : step_PV : max_PV , LCoE);
-            title('Levelized Cost of Eenergy');
+            title('Levelized Cost of Energy');
             set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
             xlabel('Battery Bank size [kWh]');
             ylabel('PV array size [kW]');
@@ -284,13 +285,13 @@ for year=loadCurve                                          % outer loop going t
         %% PART 7
         % Make optimal-solution matrix
 
-        if isempty(NPC_opt)==1
-            NPC_opt=NaN;
+        if isempty(NPC_opt) == 1
+            NPC_opt = NaN;
         end
 
-        opt_sol=[LLP_opt NPC_opt kW_opt kWh_opt LCoE_opt IC_opt];
+        opt_sol = [LLP_opt NPC_opt kW_opt kWh_opt LCoE_opt IC_opt];
 
-        MA_opt_norm_bhut_jun15_20_10(a_x,((6*counter-5):6*counter))=opt_sol;
+        MA_opt_norm_bhut_jun15_20_10(a_x, ((6 * counter - 5) : 6 * counter)) = opt_sol;     % the : operator sets the range of y-coordinates that the array opt_sol will take in the matrix MA_opt_norm_bhut_jun15_20_10
     end
 end
 
