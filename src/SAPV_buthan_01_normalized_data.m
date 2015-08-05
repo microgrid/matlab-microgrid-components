@@ -82,7 +82,7 @@ for year=loadCurve                                          % outer loop going t
     eta_disch = 0.9;            % discharge efficiency
     cycl_B_SoC_min = 2000;      % number of charge/discharge battery cycle
     max_y_repl = 5;             % maximum year before battery replacement
-    batt_ratio = 0.5;           % ratio power / energy of the battery
+    batt_ratio = 0.5;           % ratio power / energy of the battery (a measure for how fast battery can be (dis)charged)
 
     % Inverter
     eta_inv = 0.9;              % inverter efficiency
@@ -147,40 +147,42 @@ for year=loadCurve                                          % outer loop going t
             SoC(1, 1) = SoC_start;                                      % setting initial state of charge
             Pow_max = batt_ratio * Bcap_i;                              % maximum power acceptable by the battery
             Den_rainflow = 0;
-            
-            % iterate through the timesteps in one year
-            for k = 1 : size(Load,2)                                    
-                if k > 8
-                    if batt_balance(1, k-1) > 0 && batt_balance(1, k-2) > 0 && batt_balance(1, k-3) > 0 && batt_balance(1, k-4) > 0 && batt_balance(1, k-5) > 0 && batt_balance(1, k-6) > 0 && batt_balance(1, k-7) > 0 && batt_balance(1, k-8) > 0 && batt_balance(1, k) < 0 
-                       DOD = 1 - SoC(k);
-                       cycles_failure = CyclesToFailure(DOD);
+
+            % iterate through the timesteps of one year
+            for t = 1 : size(Load,2)                                    
+                if t > 8 
+                    if batt_balance(1, t-1) > 0 && batt_balance(1, t-2) > 0 && batt_balance(1, t-3) > 0 && batt_balance(1, t-4) > 0 && batt_balance(1, t-5) > 0 && batt_balance(1, t-6) > 0 && batt_balance(1, t-7) > 0 && batt_balance(1, t-8) > 0 && batt_balance(1, t) < 0   % battery has been charged the previous 8 hours but not this hour.
+                       DoD = 1 - SoC(t);                                % Depth of Discharge (DoD) is the opposite of State of Charge (SoC)
+                       cycles_failure = CyclesToFailure(DoD);
                        Den_rainflow = Den_rainflow + 1/(cycles_failure);
                     end
                 end
-                if batt_balance(1, k) < 0                                   % charging battery
-                    EB_flow = batt_balance(1, k) * eta_char;                % [kWh] to the battery % todo this is now negative 
+
+                % charging the battery
+                if batt_balance(1, t) < 0                               % PV-production is larger than Load. Battery will be charged
+                    EB_flow = batt_balance(1, t) * eta_char;            % energy flow to the battery, including losses in charging % todo this is now negative -> important for e.g. plots?
                     PB_flow = (EB_flow / eta_char);
-                    if PB_flow > Pow_max && SoC(1, k) < 1                   % checking the battery power limit
+                    if PB_flow > Pow_max && SoC(1, t) < 1               % checking that the battery can be charged
                         EB_flow = Pow_max * eta_char;
                         ELPV(PV_i, B_i) = ELPV(PV_i, B_i) + (PB_flow - Pow_max);
                     end
-                    SoC(1, k+1) = SoC(1, k) + EB_flow / Bcap_i;
-                    if SoC(1, k+1) > 1
-                        ELPV(PV_i, B_i) = ELPV(PV_i, B_i) + (SoC(1, k+1) - 1) * Bcap_i / eta_char;
-                        SoC(1, k+1) = 1;
+                    SoC(1, t+1) = SoC(1, t) + EB_flow / Bcap_i;
+                    if SoC(1, t+1) > 1
+                        ELPV(PV_i, B_i) = ELPV(PV_i, B_i) + (SoC(1, t+1) - 1) * Bcap_i / eta_char;
+                        SoC(1, t+1) = 1;
                     end
                 else
-                    % discharging battery
-                    EB_flow = batt_balance(1, k) / eta_disch;                           % [kWh] from the battery %todo this is now positive
+                    % discharging the battery
+                    EB_flow = batt_balance(1, t) / eta_disch;                           % [kWh] from the battery %todo this is now positive -> important for e.g. plots?
                     PB_flow = (abs(EB_flow) * eta_disch);
-                    if PB_flow > Pow_max && SoC(1, k) > SoC_min                         % checking the battery power limit
+                    if PB_flow > Pow_max && SoC(1, t) > SoC_min                         % checking the battery power limit
                         EB_flow = Pow_max / eta_disch;
                         LL(PV_i, B_i) = LL(PV_i, B_i) + (PB_flow - Pow_max) * eta_inv;  % computing numerator of LLP indicator
                     end
-                    SoC(1, k+1) = SoC(1, k) + EB_flow / Bcap_i;
-                    if SoC(1, k+1) < SoC_min
-                        LL(PV_i, B_i) = LL(PV_i, B_i) + (SoC_min - SoC(1, k+1)) * Bcap_i * eta_disch * eta_inv; % computing numerator of LLP indicator
-                        SoC(1, k+1) = SoC_min;
+                    SoC(1, t+1) = SoC(1, t) + EB_flow / Bcap_i;
+                    if SoC(1, t+1) < SoC_min
+                        LL(PV_i, B_i) = LL(PV_i, B_i) + (SoC_min - SoC(1, t+1)) * Bcap_i * eta_disch * eta_inv; % computing numerator of LLP indicator
+                        SoC(1, t+1) = SoC_min;
                     end
                 end
             end
