@@ -60,10 +60,9 @@ for year = loadCurve                                          % outer loop going
     % load('Tcell_Soroti_h_year.mat', 'Tcell_Soroti_h_year')                            % Cell Temperature [°C]
     irr = solar_data_Phuntsholing_baseline;
     filename = (['LoadCurve_normalized_single_3percent_',num2str(year),'.mat'])
-    data = importdata(filename);                                                        % Import load data 
+    Load = importdata(filename);                                                        % Import Load curve 
     T_amb = importdata('surface_temp_phuent_2004_hour.mat');                            % Import ambient temperature data
     T_nom = 47;                                                                         % Nominal Operating Cell Temperature [°C]
-    Load = data;                                                                        % Load Curve
     T_cell = T_amb+irr.*(T_nom-20)/0.8;                                                 % Cell temperature as function of ambient temperature
      
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -193,7 +192,7 @@ for year = loadCurve                                          % outer loop going
             peak = max(Load);                                                           % peak Load
             costINV_tot = (peak/eta_inv) * costINV;                                     % inverter cost, inverter is designed on the peak power value
             costPV_tot = costPV * PVpower_i;
-            costBoSeI = coeff_cost_BoSeI * (costBatt_tot + costINV_tot + costPV_tot);   % cost of Balance of Systems (BoS) and Installation
+            costBoSeI = coeff_cost_BoSeI * (costBatt_tot + costINV_tot + costPV_tot);   % cost of Balance of System (BoS) and Installation
             IC(PV_i,B_i) = costPV_tot + costBatt_tot + costINV_tot + costBoSeI;         % Investment Cost (IC)
             costOeM = costOeM_spec * PVpower_i;                                         % Operations & Maintenance & replacement present cost during plant lifespan
             y_rep_batt = 1/Den_rainflow;                                                % batteries should be replaced after this number of years
@@ -216,7 +215,7 @@ for year = loadCurve                                          % outer loop going
 
     % Computing Indicators
     NPC = IC + YC;                                                          % Net Present Cost 
-    CRF = (r_int * ((1 + r_int)^LT)) / (((1 + r_int)^LT) - 1);              % LCoE coefficient
+    CRF = (r_int * ((1 + r_int)^LT)) / (((1 + r_int)^LT) - 1);              % Capital Recovery Factor
     LLP = LL / sum(Load, 2);                                                % Loss of Load Probability w.r.t. total load
     LCoE = (NPC * CRF)./(sum(Load, 2) - LL);                                % Levelized Cost of Energy i.e. cost per kWh (here in €) of building and operating the plant over an assumed life cycle
         

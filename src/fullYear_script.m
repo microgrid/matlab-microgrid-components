@@ -60,12 +60,7 @@ P_syst = n_mod * W_mod;                     % Actually installed capacity [W]
 % PV - cell - temperature
 T_cell = T_amb  +  irr. * (T_nom - T_ref) / irr_nom;    % Cell temperature as function of ambient temperature
 eta_cell = 1 - temp_degen * (T_cell - T_ref);           % Cell efficiency as function of temperature
-
-
-P_pv =  irr. * eta_cell. * P_syst_des * eta_BoS;        % Power produced by the PV-installation
-
-% P_PV = eta_cell. * irr. * eta_PV * n_mod;             % Power production based on single
-% cell calculation
+P_pv =  irr.* eta_cell.* eta_PV * P_syst_des * eta_BoS; % Power produced by the PV-installation
 
 %% Power balance
 % Here follows the calculation of the power-balance of the system
@@ -104,7 +99,7 @@ for i = 2:length(irr)
         end
     end
 
-    if batt_balance == 0;               % No power exchanged with the battery
+    if batt_balance(i) == 0;            % No power exchanged with the battery
         E_batt(i) = E_batt(i - 1);      % Energy stored in battery remains the same
         SoC(i) = SoC(i - 1);            % State of Charge remains the same
     end
@@ -116,7 +111,7 @@ toc % End timer
 
 batt_balance_pos = subplus(batt_balance);         % batt_balance_pos becomes a vector only containing positive values in batt_balance i.e. only interested in when discharging. Negative values = 0
 abs(sum(LL) / sum(Load))                          % Finds percentage of Load not served
-length(LL(find(LL<0))) / length(LL)               % Loss of Load probability, how many hours are without power
+length(LL(find(LL<0))) / length(LL)               % System Average Interruption Frequency Index (SAIFI), how many hours are without power
 
 
 
