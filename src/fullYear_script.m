@@ -104,7 +104,7 @@ for i = 2:length(irr)
         end
     end
 
-    if batt_balance =  = 0;             % No power exchanged with the battery
+    if batt_balance == 0;               % No power exchanged with the battery
         E_batt(i) = E_batt(i - 1);      % Energy stored in battery remains the same
         SoC(i) = SoC(i - 1);            % State of Charge remains the same
     end
