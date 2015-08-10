@@ -7,6 +7,8 @@ A simulation to find the optimized sizes of microgrid components (PV and battery
 
 N.B. CyclesToFailure() also depends on the battery and must be changed then.
 
+- [ ] Play with the value of LLP_var. Is now very small. 
+
 ## todo list (tests)
 - [ ] give error if SoC < 20% (It may never be zero)
 
