@@ -21,3 +21,8 @@ N.B. CyclesToFailure() also depends on the battery and must be changed then.
 
 ## todo list (assumptions)
 - [ ] coeff_cost_BoSeI is now 20% of total cost. Is this reliable or can it vary a lot? May have large impact on costs.
+
+## todo rewrite (would be nice; not needed)
+- [ ] The loop 'for i = 1 : size(posPV, 1)' s.t. loop not needed
+- [ ] Combine all ifs to ifelse 
+- [ ] change batt_balance(1,t) to vector i.e. without 1 everywhere
