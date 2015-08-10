@@ -48,16 +48,15 @@ beep off
 tic                                                           % Start timer for the script
 
 x_llp = linspace(1,20,20);                                    % range of LLP_target (Loss of Load Probability) in [%]
-loadCurve = [100];                                            % number of data sets
+loadCurve_titles = [100];                                     % array with names (i.e. name them by year) of all load curves to be imported. In the case '[100]' there is just one called '100'. 
 makePlot = 0;                                                 % set to 1 if plots are desired
-columns = length(loadCurve) * 6;                              % since we will be interested in 6 variables at the end
+columns = length(loadCurve_titles) * 6;                              % since we will be interested in 6 variables at the end
 MA_opt_norm_bhut_jun15_20_10 = zeros(length(x_llp), columns); % initialization of the optimal-solution matrix
 load_curves_counter = 0;                                      % counter for the number of load curves
     
-% tags = {'LLP_opt', 'NPC', 'PV opt', 'Bat_opt', 'LCoE'};
-for year = loadCurve                                          % outer loop going through all the different data sets
+for year = loadCurve_titles                                          % outer loop going through all the different data sets
     
-    clearvars -except x_llp a_x makePlot MA_opt_norm_bhut_jun15_20_10 year loadCurve load_curves_counter
+    clearvars -except x_llp a_x makePlot MA_opt_norm_bhut_jun15_20_10 year loadCurve_titles load_curves_counter
 
     load_curves_counter = load_curves_counter + 1;
     
@@ -69,7 +68,7 @@ for year = loadCurve                                          % outer loop going
          
     % Declaration of simulation variables
     EPV = zeros(n_PV, n_batt);         % Energy PV (EPV): yearly energy produced by the PV array [kWh]
-    ELPV = zeros(n_PV, n_batt);        % Energy Loss PV (ELPV): yearly energy produced by the PV array not exploited (i.e. dissipated energy) [kWh]
+    ELPV = zeros(n_PV, n_batt);        % Energy Loss PV (ELPV): yearly energy produced by the PV array not exploited (i.e. dissipated energy) [kWh] (Does not include charging losses)
     LL = zeros(n_PV, n_batt);          % Energy not provided to the load: Loss of Load (LL) per time period [kWh]
     batt_balance = zeros(1,length(irr));  % Powerflow in battery. Positive flow out from battery, negative flow is charging
     E_batt = zeros(1,length(irr));        % Current energy stored in the battery
@@ -86,14 +85,13 @@ for year = loadCurve                                          % outer loop going
     T_ref = 25;                 % Nominal ambient test-temperature of the panels [C]
     T_nom = 47;                 % Nominal Operating Cell Temperature [°C]
     coeff_T_pow = 0.004;        % Derating of panel's power due to temperature [/C]
-    T_cell = T_amb + irr .* (T_nom - 20) / 0.8;     % Cell temperature as function of ambient temperature [C]
 
     % Battery
-    SoC_min = 0.4;              % minimum allowed State Of Charge
+    SoC_min = 0.4;              % minimum allowed State Of Charge. This depends on the battery type. The choice of SoC_min influences the lifetime of the batteries.
     SoC_start = 1;              % setting initial State Of Charge
     eff_char = 0.85;            % charge efficiency
     eff_disch = 0.9;            % discharge efficiency
-    cycl_B_SoC_min = 2000;      % number of charge/discharge battery cycle
+    % cycl_B_SoC_min = 2000;      % number of charge/discharge battery cycle
     max_y_repl = 5;             % maximum year before battery replacement
     batt_ratio = 0.5;           % ratio power / energy of the battery (a measure for how fast battery can be (dis)charged)
 
@@ -120,6 +118,13 @@ for year = loadCurve                                          % outer loop going
     max_batt = 800;                % Max Battery capacity simulated [kWh]
     step_batt = 2;                 % Battery capacity simulation step [kWh]
 
+    % info not being used:
+    % P_mod = 250;                                % Module power in [W]
+    % n_mod = ceil(P_syst_des * 1e3 / P_mod);     % Number of modules required for the system of given size
+    % a_module = 1.65;                            % Module area in [m^2]
+    % V_oc = 34.4;                                % Open circuit voltage [V]
+    % P_syst = n_mod * P_mod;                     % Actually installed capacity [W]
+
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% PART 2
     % SYSTEM SIMULATION AND PERFORMANCE INDICATORs COMPUTATION
@@ -128,23 +133,25 @@ for year = loadCurve                                          % outer loop going
     n_PV = ((max_PV - min_PV) / step_PV) + 1;   % N. of simulated PV power sizes (i.e. N. of iteration on PV)
     n_batt = ((max_batt - min_batt) / step_batt) + 1;       % N. of simulated Battery capacity (i.e. N. of iteration on Batt)
 
-    n = 0;
+    % n = 0;
     %% Plant simulation
     % iterate over all PV power sizes from min_PV to max_PV
     for PV_i = 1 : n_PV                                                 
-        n = n + 1;
+        % n = n + 1;    % nowhere else used (?)
         PVpower_i = min_PV + (PV_i - 1) * step_PV;                      % iteration on PV power
+        T_cell = T_amb + irr .* (T_nom - 20) / 0.8;     % Cell temperature as function of ambient temperature [C]
         eff_cell = 1 - coeff_T_pow .* (T_cell - T_ref);                 % cell efficiency as function of temperature
         P_pv = irr .* PVpower_i .* eff_cell .* eff_BoS;                 % array with Energy from the PV (EPV) for each time step throughout the year
+        
         batt_balance = Load / eff_inv - P_pv;                           % array containing the power balance of the battery for each time step throughout the year (negative value is charging battery) [kWh]
         
         % iterate over all battery capacities from min_batt to max_batt
-        for B_i = 1 : n_batt                                               
-            Bcap_i = min_batt + (B_i - 1) * step_batt;                        % iteration on battery capacity
-            EPV(PV_i, B_i) = sum(P_pv, 2);                              % computing EPV value
+        for batt_i = 1 : n_batt                                               
+            batt_cap_i = min_batt + (batt_i - 1) * step_batt;                        % iteration on battery capacity
+            EPV(PV_i, batt_i) = sum(P_pv, 2);                              % computing EPV value
             SoC(1, 1) = SoC_start;                                      % setting initial state of charge
-            Pow_max = batt_ratio * Bcap_i;                              % maximum power acceptable by the battery
-            Den_rainflow = 0;
+            Pow_max = batt_ratio * batt_cap_i;                              % maximum power acceptable by the battery
+            Den_rainflow = 0;                                           % counter for number of cycles battery goes through. Needed for CyclesToFailure()
 
             % iterate through the timesteps of one year
             for t = 1 : size(Load,2)                                    
@@ -162,11 +169,11 @@ for year = loadCurve                                          % outer loop going
                     EB_flow = batt_balance(1, t) * eff_char;            % energy flow that will be stored in the battery i.e. including losses in charging [kWh]    % todo this is now negative -> important for plots?
                     if (abs(PB_flow)) > Pow_max && SoC(1, t) < 1        % in-flow exceeds the battery power limit
                         EB_flow = Pow_max * eff_char;
-                        ELPV(PV_i, B_i) = ELPV(PV_i, B_i) + (abs(PB_flow)- Pow_max);
+                        ELPV(PV_i, batt_i) = ELPV(PV_i, batt_i) + (abs(PB_flow)- Pow_max);
                     end
-                    SoC(1, t+1) = SoC(1, t) + abs(EB_flow) / Bcap_i;
+                    SoC(1, t+1) = SoC(1, t) + abs(EB_flow) / batt_cap_i;
                     if SoC(1, t+1) > 1
-                        ELPV(PV_i, B_i) = ELPV(PV_i, B_i) + (SoC(1, t+1) - 1) * Bcap_i / eff_char;
+                        ELPV(PV_i, batt_i) = ELPV(PV_i, batt_i) + (SoC(1, t+1) - 1) * batt_cap_i / eff_char;
                         SoC(1, t+1) = 1;
                     end
                 else
@@ -175,11 +182,11 @@ for year = loadCurve                                          % outer loop going
                     EB_flow = batt_balance(1, t) / eff_disch;                           % total energy flow from the battery i.e. including losses in charging [kWh]    %todo this is now positive -> important for plots?
                     if PB_flow > Pow_max && SoC(1, t) > SoC_min                         % checking the battery power limit
                         EB_flow = Pow_max / eff_disch;
-                        LL(PV_i, B_i) = LL(PV_i, B_i) + (PB_flow - Pow_max) * eff_inv;  % adding the part to LL (Loss of Load) due to exceeding the battery discharging speed
+                        LL(PV_i, batt_i) = LL(PV_i, batt_i) + (PB_flow - Pow_max) * eff_inv;  % adding the part to LL (Loss of Load) due to exceeding the battery discharging speed
                     end
-                    SoC(1, t+1) = SoC(1, t) - EB_flow / Bcap_i;
+                    SoC(1, t+1) = SoC(1, t) - EB_flow / batt_cap_i;
                     if SoC(1, t+1) < SoC_min
-                        LL(PV_i, B_i) = LL(PV_i, B_i) + (SoC_min - SoC(1, t+1)) * Bcap_i * eff_disch * eff_inv; % adding the part to LL (Loss of Load) due to not enough energy in battery (using that battery must stay at SoC_min)
+                        LL(PV_i, batt_i) = LL(PV_i, batt_i) + (SoC_min - SoC(1, t+1)) * batt_cap_i * eff_disch * eff_inv; % adding the part to LL (Loss of Load) due to not enough energy in battery (using that battery must stay at SoC_min)
                         SoC(1, t+1) = SoC_min;
                     end
                 end
@@ -187,28 +194,28 @@ for year = loadCurve                                          % outer loop going
 
             %% Economic Analysis
             % Investment cost
-            costBatt_tot = costBatt_coef_a * Bcap_i + costBatt_coef_b;                  % battery cost
+            costBatt_tot = costBatt_coef_a * batt_cap_i + costBatt_coef_b;                  % battery cost
             peak = max(Load);                                                           % peak Load
             costINV_tot = (peak/eff_inv) * costINV;                                     % inverter cost, inverter is designed on the peak power value
             costPV_tot = costPV * PVpower_i;
             costBoSeI = coeff_cost_BoSeI * (costBatt_tot + costINV_tot + costPV_tot);   % cost of Balance of System (BoS) and Installation
-            IC(PV_i,B_i) = costPV_tot + costBatt_tot + costINV_tot + costBoSeI;         % Investment Cost (IC)
+            IC(PV_i,batt_i) = costPV_tot + costBatt_tot + costINV_tot + costBoSeI;         % Investment Cost (IC)
             costOeM = costOeM_spec * PVpower_i;                                         % Operations & Maintenance & replacement present cost during plant lifespan
-            y_rep_batt = 1/Den_rainflow;                                                % batteries should be replaced after this number of years
-            if y_rep_batt > max_y_repl
-               y_rep_batt =  max_y_repl;
+            years_to_go_batt = 1/Den_rainflow;                                                % batteries should be replaced after this number of years
+            if years_to_go_batt > max_y_repl
+               years_to_go_batt =  max_y_repl;
             end
-            num_batt(PV_i,B_i) = ceil(LT / y_rep_batt);
+            num_batt(PV_i,batt_i) = ceil(LT / years_to_go_batt);
 
             for k = 1 : LT
-                if k > y_rep_batt
-                    YC(PV_i,B_i) = YC(PV_i,B_i) + costBatt_tot / ((1 + r_int)^y_rep_batt);                      % computing present values of battery
-                    y_rep_batt = y_rep_batt + y_rep_batt;
+                if k > years_to_go_batt
+                    YC(PV_i,batt_i) = YC(PV_i,batt_i) + costBatt_tot / ((1 + r_int)^years_to_go_batt);                      % computing present values of battery
+                    years_to_go_batt = years_to_go_batt + years_to_go_batt;
                 end
-                YC(PV_i,B_i) = YC(PV_i,B_i) + costOeM / ((1 + r_int)^k);                                        % computing present values of Operations & Maintenance
+                YC(PV_i,batt_i) = YC(PV_i,batt_i) + costOeM / ((1 + r_int)^k);                                        % computing present values of Operations & Maintenance
             end
-            YC(PV_i,B_i) = YC(PV_i,B_i) - costBatt_tot * ( (y_rep_batt - LT) / y_rep_batt ) / (1 + r_int)^(LT); % salvage due to battery life i.e. estimating how much the batteries are worth after the lifetime of the system
-            YC(PV_i,B_i) = YC(PV_i,B_i) + costINV_tot / ((1 + r_int)^(LT / 2));                                 % cost of replacing inverter. Assumption: lifetime inverter is half of lifetime system LT
+            YC(PV_i,batt_i) = YC(PV_i,batt_i) - costBatt_tot * ( (years_to_go_batt - LT) / years_to_go_batt ) / (1 + r_int)^(LT); % salvage due to battery life i.e. estimating how much the batteries are worth after the lifetime of the system
+            YC(PV_i,batt_i) = YC(PV_i,batt_i) + costINV_tot / ((1 + r_int)^(LT / 2));                                 % cost of replacing inverter. Assumption: lifetime inverter is half of lifetime system LT
         end
     end
 
@@ -216,7 +223,7 @@ for year = loadCurve                                          % outer loop going
     NPC = IC + YC;                                                          % Net Present Cost 
     CRF = (r_int * ((1 + r_int)^LT)) / (((1 + r_int)^LT) - 1);              % Capital Recovery Factor
     LLP = LL / sum(Load, 2);                                                % Loss of Load Probability w.r.t. total load
-    LCoE = (NPC * CRF)./(sum(Load, 2) - LL);                                % Levelized Cost of Energy i.e. cost per kWh (here in €) of building and operating the plant over an assumed life cycle
+    LCoE = (NPC * CRF)./(sum(Load, 2) - LL);                                % Levelized Cost of Energy i.e. cost per kWh (here in €) of building and operating the plant over an assumed life cycle. This is important as we want it to be competitive with the grid LCoE. See eqn. (7.6) in thesis Stefano Mandelli.
         
     save('results.mat')
 
