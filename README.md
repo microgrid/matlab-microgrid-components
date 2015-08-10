@@ -13,6 +13,7 @@ N.B. CyclesToFailure() also depends on the battery and must be changed then.
 - [ ] D. spikes. Play with stepsize and make a test.
 - [ ] E. visual interface of graphs (Honorat)
 - [ ] F. Think about dependance on square meters. x, t, m2.
+- [ ] genetic algorithm? (Honorat)
 
 ## todo list (tests)
 - [ ] give error if SoC < 20% (It may never be zero)
