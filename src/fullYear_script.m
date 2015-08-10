@@ -17,9 +17,8 @@ T_amb = importdata('surface_temp_phuent_2004_hour.mat');              % Importin
 Load = importdata('LoadCurve_normalized_single_3percent_100.mat');    % Load data in kW, hourly resolution
 
 % Declaration of variables
-EPV = zeros(1,length(irr));           % Energy produced by the PV
 ELPV = zeros(1,length(irr));          % Energy loss PV (Energy not exploited)
-LL = zeros(1,length(irr));            % Loss of Load for time period if  = 1, else, power is delivered
+LL = zeros(1,length(irr));            % Loss of Load for time period. If 0 power is delivered; if some negative number then this is the loss of load.
 SoC = zeros(1,length(irr));           % State of Charge of the battery
 batt_balance = zeros(1,length(irr));  % Powerflow in battery. Positive flow out from battery, negative flow is charging
 E_batt = zeros(1,length(irr));        % Current energy stored in the battery
@@ -49,47 +48,48 @@ eta_inv = 0.9;                    % Inverter efficiency
 
 % Solar panels
 % Here are the details for the solar panels, PER MODULE 
-a_module = 1.65;                            % Module area in [m^2]
-W_mod = 250;                                % Module power in [W]
-V_oc = 34.4;                                % Open circuit voltage [V]
 eta_PV = 0.15;                              % Efficiency for the panels
 irr_nom = 0.8;                              % Irradiation at nominal operation [kW / m^2]
-n_mod = ceil(P_syst_des * 1e3 / W_mod);     % Number of modules required for the system of given size
-P_syst = n_mod * W_mod;                     % Actually installed capacity [W]
 
-% PV - cell - temperature
+% info not being used:
+% P_mod = 250;                                % Module power in [W]
+% n_mod = ceil(P_syst_des * 1e3 / P_mod);     % Number of modules required for the system of given size
+% a_module = 1.65;                            % Module area in [m^2]
+% V_oc = 34.4;                                % Open circuit voltage [V]
+% P_syst = n_mod * P_mod;                     % Actually installed capacity [W]
+
+% PV-cell-temperature
 T_cell = T_amb  +  irr. * (T_nom - T_ref) / irr_nom;    % Cell temperature as function of ambient temperature
 eta_cell = 1 - temp_degen * (T_cell - T_ref);           % Cell efficiency as function of temperature
 P_pv =  irr.* eta_cell.* eta_PV * P_syst_des * eta_BoS; % Power produced by the PV-installation
 
 %% Power balance
 % Here follows the calculation of the power-balance of the system
-
 batt_balance = Load / eta_inv - P_pv;                   % Array containing the power balance of the battery for each time step throughout the year (negative value is charging battery) [kWh]
 
 for i = 2:length(irr)
     
     % Charging the battery
-    if batt_balance(i)<0                                                % PV - production is larger than Load. Battery will be charged
+    if batt_balance(i) < 0                                              % PV production is larger than Load. Battery will be charged
         EB_flow = batt_balance(i) * eta_char;                           % energy flow that will be stored in the battery i.e. including losses in charging 
         if (SoC(i - 1) - batt_balance(i) / E_batt_nom)>1                % SoC at n-1  +  power charging will exceed battery capacity limit
             ELPV(i) = E_batt(i - 1) - batt_balance(i) - E_batt_nom;     % Power not being utilized is the amount of power not charged to the battery, and must be dumped
             batt_balance(i) = E_batt(i - 1) - E_batt_nom;               % Updating batt_balance to actual amount charged
             E_batt(i) = E_batt_nom;                                     % Battery is full, thus energy stored = max energy in batt
             SoC(i) = E_batt(i) / E_batt_nom;                            % SoC will be 1
-        else %(SoC(i - 1) - batt_balance(i) / E_batt_nom)< = 1          % Sufficient room in battery
+        else                                                            % Sufficient room in battery
             E_batt(i) = E_batt(i - 1) - EB_flow;
             SoC(i) = E_batt(i) / E_batt_nom;
         end
     end
         
     % Discharging the battery
-    if batt_balance(i)>0                                                % PV production is lower than Load consumption
+    if batt_balance(i) > 0                                              % PV production is lower than Load consumption
         EB_flow = batt_balance(i) / eta_disch;                          % Energy flow from the battery, including losses in discharging
         if (SoC(i - 1) - EB_flow / E_batt_nom) > = SoC_min              % Sufficient power in battery
             E_batt(i) = E_batt(i - 1) - batt_balance(i);
             SoC(i) = E_batt(i) / E_batt_nom;
-        else  % (SoC(i - 1) - batt_balance(i) / E_batt_nom)<SoC_min     % Not enough power in battery
+        else                                                            % Not enough power in battery
             E_batt(i) = E_batt(i - 1) - EB_flow;                        % Energy in battery without SoC limit (only for calculation purpose)
             SoC(i) = E_batt(i) / E_batt_nom;                            % SoC in battery without limit (only for calculation purpose)
             LL(i) = E_batt(i) - E_batt_nom * SoC_min;                   % Lost power, power not delivered to the Load
@@ -105,15 +105,11 @@ for i = 2:length(irr)
     end
 end
     
-prod_sum = P_pv + batt_balance;
-
 toc % End timer
 
 batt_balance_pos = subplus(batt_balance);         % batt_balance_pos becomes a vector only containing positive values in batt_balance i.e. only interested in when discharging. Negative values = 0
-abs(sum(LL) / sum(Load))                          % Finds percentage of Load not served
-length(LL(find(LL<0))) / length(LL)               % System Average Interruption Frequency Index (SAIFI), how many hours are without power
-
-
+abs(sum(LL) / sum(Load))                          % Finds percentage of Load not served (w.r.t. kWh)
+length(LL(find(LL<0))) / length(LL)               % System Average Interruption Frequency Index (SAIFI), how many hours are without power  (w.r.t. hours)
 
 %% Plots
 
