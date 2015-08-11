@@ -69,7 +69,7 @@ load_curves_counter = 0;                                      % counter for the 
     
 for year = loadCurve_titles                                   % outer loop going through all the different data sets
     
-    clearvars -except x_llp a_x makePlot MA_opt_norm_bhut_jun15_20_10 year loadCurve_titles load_curves_counter
+    clearvars -except x_llp a_x makePlot MA_opt_norm_bhut_jun15_20_10 year loadCurve_titles load_curves_counter min_PV max_PV step_PV n_PV min_batt max_batt step_batt n_batt
 
     load_curves_counter = load_curves_counter + 1;
     
@@ -194,33 +194,35 @@ for year = loadCurve_titles                                   % outer loop going
 
             if batt_i == 1 && PV_i == 1                           % temporary bad solution
                 batt_balance_pos = subplus(batt_balance);         % batt_balance_pos becomes a vector only containing positive values in batt_balance i.e. only interested in when discharging. Negative values = 0
-                abs(sum(LL) / sum(Load))                          % Finds percentage of Load not served (w.r.t. kWh)
-                length(LL(find(LL<0))) / length(LL)               % System Average Interruption Frequency Index (SAIFI), how many hours are without power  (w.r.t. hours)
+                abs(sum(LL) / sum(Load));                         % Finds percentage of Load not served (w.r.t. kWh)
+                length(LL(find(LL<0))) / length(LL);              % System Average Interruption Frequency Index (SAIFI), how many hours are without power  (w.r.t. hours)
 
-                figure(1)
-                plot(Load,'Color',[72 122 255] / 255)
-                hold on
-                plot(P_pv,'Color',[255 192 33] / 255)
-                hold on
-                plot(batt_balance_pos,'Color',[178 147 68] / 255)
-                hold off
-                xlabel('Time over the year [hour]')
-                ylabel('Energy [kWh]')
-                title('Energy produced and estimated load profile over the year')
-                legend('Load profile','Energy from PV', 'Energy flow in battery')
+                if makePlot == 1
+                    figure(1)
+                    plot(Load,'Color',[72 122 255] / 255)
+                    hold on
+                    plot(P_pv,'Color',[255 192 33] / 255)
+                    hold on
+                    plot(batt_balance_pos,'Color',[178 147 68] / 255)
+                    hold off
+                    xlabel('Time over the year [hour]')
+                    ylabel('Energy [kWh]')
+                    title('Energy produced and estimated load profile over the year')
+                    legend('Load profile','Energy from PV', 'Energy flow in battery')
 
-                % todo repeat figure (1) for one day
+                    % todo repeat figure (1) for one day
 
-                figure(2)
-                plot(SoC,'Color',[64 127 255] / 255)
-                hold on
-                plot(LL./ E_batt_nom + SoC_min,'Color',[255 91 60] / 255)
-                hold on
-                plot(ELPV./ E_batt_nom + 1,'Color',[142 178 68] / 255)
-                hold off
-                xlabel('Time over the year [hour]')
-                ylabel('Power refered to State of Charge of the battery')
-                legend('State of charge', 'Loss of power', 'Overproduction, not utilized')
+                    figure(2)
+                    plot(SoC,'Color',[64 127 255] / 255)
+                    hold on
+                    plot(LL./ batt_cap_i + SoC_min,'Color',[255 91 60] / 255)
+                    hold on
+                    plot(ELPV./ batt_cap_i + 1,'Color',[142 178 68] / 255)
+                    hold off
+                    xlabel('Time over the year [hour]')
+                    ylabel('Power refered to State of Charge of the battery')
+                    legend('State of charge', 'Loss of power', 'Overproduction, not utilized')
+                end
             end
 
             %% Economic Analysis
@@ -283,35 +285,33 @@ for year = loadCurve_titles                                   % outer loop going
         LCoE_opt = LCoE(PV_opt, Batt_opt);
         IC_opt = IC(PV_opt, Batt_opt);
 
-        toc % End timer
-
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% PART 4
         % PLOTTING
 
         if makePlot == 1
-            figure(1);
+            figure(3);
             mesh(min_batt : step_batt : max_batt , min_PV : step_PV : max_PV , NPC);
             title('Net Present Cost');
             set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
             xlabel('Battery Bank size [kWh]');
             ylabel('PV array size [kW]');
 
-            figure(2);
+            figure(4);
             mesh(min_batt : step_batt : max_batt , min_PV : step_PV : max_PV , LLP);
             title('Loss of Load Probability');
             set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
             xlabel('Battery Bank size [kWh]');
             ylabel('PV array size [kW]');
 
-            figure(3);
+            figure(5);
             mesh(min_batt : step_batt : max_batt , min_PV : step_PV : max_PV , LCoE);
             title('Levelized Cost of Energy');
             set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
             xlabel('Battery Bank size [kWh]');
             ylabel('PV array size [kW]');
 
-            figure(4);
+            figure(6);
             mesh(min_batt : step_batt : max_batt , min_PV : step_PV : max_PV , num_batt);
             title('Num. of battery employed due to lifetime limit');
             set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
@@ -333,4 +333,5 @@ for year = loadCurve_titles                                   % outer loop going
     end
 end
 
+toc % End timer
 save('MA_opt_norm_bhut_jun15_20_10.mat','MA_opt_norm_bhut_jun15_20_10')
