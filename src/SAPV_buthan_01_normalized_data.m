@@ -71,7 +71,6 @@ for year = loadCurve_titles                                          % outer loo
     ELPV = zeros(n_PV, n_batt);        % Energy Loss PV (ELPV): yearly energy produced by the PV array not exploited (i.e. dissipated energy) [kWh] (Does not include charging losses)
     LL = zeros(n_PV, n_batt);          % Energy not provided to the load: Loss of Load (LL) per time period [kWh]
     batt_balance = zeros(1,length(irr));  % Powerflow in battery. Positive flow out from battery, negative flow is charging
-    E_batt = zeros(1,length(irr));        % Current energy stored in the battery
     num_batt = zeros(n_PV, n_batt);    % number of batteries employed due to lifetime limit
     SoC = zeros(1,size(Load,2));    % to save step-by-step SoC (State of Charge) of the battery
     IC = zeros(n_PV, n_batt);          % Investment Cost (IC) [€]
@@ -82,9 +81,10 @@ for year = loadCurve_titles                                          % outer loo
 
     % PV panels
     eff_BoS = 0.85;             % Balance Of System: account for such factors as soiling of the panels, wiring losses, shading, snow cover, aging, and so on
-    T_ref = 25;                 % Nominal ambient test-temperature of the panels [C]
+    T_ref = 20;                 % Nominal ambient test-temperature of the panels [C] % todo in fullYear script this was 25 and in SAPV it was 20. which one?
     T_nom = 47;                 % Nominal Operating Cell Temperature [°C]
     coeff_T_pow = 0.004;        % Derating of panel's power due to temperature [/C]
+    irr_nom = 0.8;              % Irradiation at nominal operation [kW / m^2]
 
     % Battery
     SoC_min = 0.4;              % minimum allowed State Of Charge. This depends on the battery type. The choice of SoC_min influences the lifetime of the batteries.
@@ -139,7 +139,7 @@ for year = loadCurve_titles                                          % outer loo
     for PV_i = 1 : n_PV                                                 
         % n = n + 1;    % nowhere else used (?)
         PVpower_i = min_PV + (PV_i - 1) * step_PV;                      % iteration on PV power
-        T_cell = T_amb + irr .* (T_nom - 20) / 0.8;                     % Cell temperature as function of ambient temperature [C]
+        T_cell = T_amb + irr .* (T_nom - T_ref) / irr_nom;              % Cell temperature as function of ambient temperature [C]
         eff_cell = 1 - coeff_T_pow .* (T_cell - T_ref);                 % cell efficiency as function of temperature
         P_pv = irr .* PVpower_i .* eff_cell .* eff_BoS;                 % array with Energy from the PV (EPV) for each time step throughout the year. see p.191 of thesis Stefano Mandelli
         
@@ -151,13 +151,12 @@ for year = loadCurve_titles                                          % outer loo
             EPV(PV_i, batt_i) = sum(P_pv, 2);                           % computing EPV value
             SoC(1, 1) = SoC_start;                                      % setting initial state of charge
             Pow_max = batt_ratio * batt_cap_i;                          % maximum power acceptable by the battery
-            % E_batt(1) = Pow_max * SoC(1);                               % Current energy stored in the battery
             Den_rainflow = 0;                                           % counter for number of cycles battery goes through. Needed for CyclesToFailure()
 
             % iterate through the timesteps of one year
             for t = 1 : size(Load,2)                                    
                 if t > 8 
-                    if batt_balance(1, t-1) > 0 && batt_balance(1, t-2) > 0 && batt_balance(1, t-3) > 0 && batt_balance(1, t-4) > 0 && batt_balance(1, t-5) > 0 && batt_balance(1, t-6) > 0 && batt_balance(1, t-7) > 0 && batt_balance(1, t-8) > 0 && batt_balance(1, t) < 0   % battery has been charged the previous 8 hours but not this hour.
+                    if batt_balance(t-1) > 0 && batt_balance(t-2) > 0 && batt_balance(t-3) > 0 && batt_balance(t-4) > 0 && batt_balance(t-5) > 0 && batt_balance(t-6) > 0 && batt_balance(t-7) > 0 && batt_balance(t-8) > 0 && batt_balance(t) < 0   % battery has been charged the previous 8 hours but not this hour.
                        DoD = 1 - SoC(t);                                % Depth of Discharge (DoD) is the opposite of State of Charge (SoC)
                        cycles_failure = CyclesToFailure(DoD);
                        Den_rainflow = Den_rainflow + 1/(cycles_failure);
@@ -165,32 +164,62 @@ for year = loadCurve_titles                                          % outer loo
                 end
 
                 % charging the battery
-                if batt_balance(1, t) < 0                               % PV-production is larger than Load. Battery will be charged
-                    PB_flow = batt_balance(1, t);                       % energy flow to the battery (negative number since charging)
-                    EB_flow = batt_balance(1, t) * eff_char;            % energy flow that will be stored in the battery i.e. including losses in charging [kWh]    % todo this is now negative -> important for plots?
-                    if (abs(PB_flow)) > Pow_max && SoC(1, t) < 1        % in-flow exceeds the battery power limit
-                        EB_flow = Pow_max * eff_char;
-                        ELPV(PV_i, batt_i) = ELPV(PV_i, batt_i) + (abs(PB_flow)- Pow_max);
+                if batt_balance(t) < 0                               % PV-production is larger than Load. Battery will be charged
+                    flow_from_batt = batt_balance(t) * eff_char;            % energy flow that will be stored in the battery i.e. including losses in charging (negative number since charging) [kWh]    % todo this is now negative -> important for plots?
+                    if (abs(batt_balance(t))) > Pow_max && SoC(1, t) < 1        % in-flow exceeds the battery power limit
+                        flow_from_batt = Pow_max * eff_char;
+                        ELPV(PV_i, batt_i) = ELPV(PV_i, batt_i) + (abs(batt_balance(t))- Pow_max);
                     end
-                    SoC(1, t+1) = SoC(1, t) + abs(EB_flow) / batt_cap_i;
+                    SoC(1, t+1) = SoC(1, t) + abs(flow_from_batt) / batt_cap_i;
                     if SoC(1, t+1) > 1
                         ELPV(PV_i, batt_i) = ELPV(PV_i, batt_i) + (SoC(1, t+1) - 1) * batt_cap_i / eff_char;
                         SoC(1, t+1) = 1;
                     end
                 else
                     % discharging the battery
-                    PB_flow = batt_balance(1, t);                                       % energy flow from the battery (positive number since discharging)
-                    EB_flow = batt_balance(1, t) / eff_disch;                           % total energy flow from the battery i.e. including losses in charging [kWh]    %todo this is now positive -> important for plots?
-                    if PB_flow > Pow_max && SoC(1, t) > SoC_min                         % checking the battery power limit
-                        EB_flow = Pow_max / eff_disch;
-                        LL(PV_i, batt_i) = LL(PV_i, batt_i) + (PB_flow - Pow_max) * eff_inv;  % adding the part to LL (Loss of Load) due to exceeding the battery discharging speed
+                    flow_from_batt = batt_balance(t) / eff_disch;                           % total energy flow from the battery i.e. including losses in charging (positive number since discharging) [kWh]    %todo this is now positive -> important for plots?
+                    if batt_balance(t) > Pow_max && SoC(1, t) > SoC_min                         % checking the battery power limit
+                        flow_from_batt = Pow_max / eff_disch;
+                        LL(PV_i, batt_i) = LL(PV_i, batt_i) + (batt_balance(t) - Pow_max) * eff_inv;  % adding the part to LL (Loss of Load) due to exceeding the battery discharging speed
                     end
-                    SoC(1, t+1) = SoC(1, t) - EB_flow / batt_cap_i;
+                    SoC(1, t+1) = SoC(1, t) - flow_from_batt / batt_cap_i;
                     if SoC(1, t+1) < SoC_min
                         LL(PV_i, batt_i) = LL(PV_i, batt_i) + (SoC_min - SoC(1, t+1)) * batt_cap_i * eff_disch * eff_inv; % adding the part to LL (Loss of Load) due to not enough energy in battery (using that battery must stay at SoC_min)
                         SoC(1, t+1) = SoC_min;
                     end
                 end
+            end
+
+
+            if batt_i == 1 && PV_i == 1                           % temporary bad solution
+                batt_balance_pos = subplus(batt_balance);         % batt_balance_pos becomes a vector only containing positive values in batt_balance i.e. only interested in when discharging. Negative values = 0
+                abs(sum(LL) / sum(Load))                          % Finds percentage of Load not served (w.r.t. kWh)
+                length(LL(find(LL<0))) / length(LL)               % System Average Interruption Frequency Index (SAIFI), how many hours are without power  (w.r.t. hours)
+
+                figure(1)
+                plot(Load,'Color',[72 122 255] / 255)
+                hold on
+                plot(P_pv,'Color',[255 192 33] / 255)
+                hold on
+                plot(batt_balance_pos,'Color',[178 147 68] / 255)
+                hold off
+                xlabel('Time over the year [hour]')
+                ylabel('Energy [kWh]')
+                title('Energy produced and estimated load profile over the year')
+                legend('Load profile','Energy from PV', 'Energy flow in battery')
+
+                % todo repeat figure (1) for one day
+
+                figure(2)
+                plot(SoC,'Color',[64 127 255] / 255)
+                hold on
+                plot(LL. / E_batt_nom + SoC_min,'Color',[255 91 60] / 255)
+                hold on
+                plot(ELPV. / E_batt_nom + 1,'Color',[142 178 68] / 255)
+                hold off
+                xlabel('Time over the year [hour]')
+                ylabel('Power refered to State of Charge of the battery')
+                legend('State of charge', 'Loss of power', 'Overproduction, not utilized')
             end
 
             %% Economic Analysis
@@ -252,6 +281,8 @@ for year = loadCurve_titles                                          % outer loo
         LLP_opt = LLP(PV_opt, Batt_opt)
         LCoE_opt = LCoE(PV_opt, Batt_opt);
         IC_opt = IC(PV_opt, Batt_opt);
+
+        toc % End timer
 
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% PART 4
