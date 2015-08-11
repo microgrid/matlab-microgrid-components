@@ -70,7 +70,7 @@ for i = 2:length(irr)
     
     % Charging the battery
     if batt_balance(i) < 0                                              % PV production is larger than Load. Battery will be charged
-        EB_flow = batt_balance(i) * eta_char;                           % energy flow that will be stored in the battery i.e. including losses in charging 
+        EB_flow = batt_balance(i) * eta_char;                           % energy flow that will be stored in the battery i.e. including losses in charging. Equivalent to flow_from_batt in SAPV script.
         if (SoC(i - 1) - batt_balance(i) / E_batt_nom) > 1              % SoC at n-1  +  power charging will exceed battery capacity limit
             ELPV(i) = E_batt(i - 1) - batt_balance(i) - E_batt_nom;     % Power not being utilized is the amount of power not charged to the battery, and must be dumped
             batt_balance(i) = E_batt(i - 1) - E_batt_nom;               % Updating batt_balance to actual amount charged
