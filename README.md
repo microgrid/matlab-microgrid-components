@@ -17,6 +17,7 @@ N.B. CyclesToFailure() also depends on the battery and must be changed then.
 
 ## Todo list (tests)
 - [ ] give error if SoC < 20% (It may never be zero)
+- [ ] give error if NPC_opt empty and define PV_opt, Batt_opt for that case 
 - [ ] check that range of PV and battery is divisible by PV_step and Batt_step
 - [ ] evt. check that size of dimensions is larger than one s.t. taken over right dimension?
 
