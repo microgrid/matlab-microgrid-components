@@ -12,7 +12,7 @@ N.B. CyclesToFailure() also depends on the battery and must be changed then.
 - [ ] C. Rewrite in Python
 - [ ] D. spikes. Play with stepsize and make a test.
 - [ ] E. visual interface of graphs (Honorat)
-- [ ] F. Think about dependance on square meters. x, t, m2.
+- [ ] F. Think about dependance on square meters. x, t, m2. (m2 can be obtained from the rated power PV_size and the type of PV). Alternative is to write this out (and ask for these inputs explicitly).
 - [ ] genetic algorithm? (Honorat)
 
 ## todo list (tests)
@@ -25,5 +25,5 @@ N.B. CyclesToFailure() also depends on the battery and must be changed then.
 
 ## todo rewrite (would be nice; not needed)
 - [ ] The loop 'for i = 1 : size(posPV, 1)' s.t. loop not needed
-- [ ] Combine all ifs to ifelse 
-- [ ] change batt_balance(1,t) to vector i.e. without 1 everywhere
+- [x] Combine all ifs to ifelse 
+- [x] change batt_balance(1,t) to vector i.e. without 1 everywhere
