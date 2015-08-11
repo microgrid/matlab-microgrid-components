@@ -27,8 +27,8 @@ E_batt = zeros(1,length(irr));        % Current energy stored in the battery
 % System details and input-variables are as follows
 
 % INPUT VALUES
-P_syst_des = 295;         % INPUT Desired system capacity in [kW]
-E_batt_nom = 1385;        % INPUT Capacity of the battery in [kWh] 
+P_syst_des = 295;         % INPUT Desired system capacity in [kW]   N.B. 'P_syst_des' is equivalent to 'PV_power_i' in the SAPV_buthan_01 script.
+E_batt_nom = 1385;        % INPUT Capacity of the battery in [kWh]  N.B. 'E_batt_nom' is equivalent to 'Pow_max' in the SAPV_buthan_01 script. NO!
 
 % PV panels
 eta_BoS = 0.85;           % Balance Of System: account for such factors as soiling of the panels, wiring losses, shading, snow cover, aging, and so on
@@ -48,7 +48,6 @@ eta_inv = 0.9;                    % Inverter efficiency
 
 % Solar panels
 % Here are the details for the solar panels, PER MODULE 
-eta_PV = 0.15;                              % Efficiency for the panels
 irr_nom = 0.8;                              % Irradiation at nominal operation [kW / m^2]
 
 % info not being used:
@@ -61,7 +60,7 @@ irr_nom = 0.8;                              % Irradiation at nominal operation [
 % PV-cell-temperature
 T_cell = T_amb  +  irr. * (T_nom - T_ref) / irr_nom;    % Cell temperature as function of ambient temperature
 eta_cell = 1 - temp_degen * (T_cell - T_ref);           % Cell efficiency as function of temperature
-P_pv =  irr.* eta_cell.* eta_PV * P_syst_des * eta_BoS; % Power produced by the PV-installation
+P_pv =  irr.* eta_cell.* P_syst_des * eta_BoS; % Power produced by the PV-installation. see p.191 of thesis Stefano Mandelli
 
 %% Power balance
 % Here follows the calculation of the power-balance of the system
@@ -72,7 +71,7 @@ for i = 2:length(irr)
     % Charging the battery
     if batt_balance(i) < 0                                              % PV production is larger than Load. Battery will be charged
         EB_flow = batt_balance(i) * eta_char;                           % energy flow that will be stored in the battery i.e. including losses in charging 
-        if (SoC(i - 1) - batt_balance(i) / E_batt_nom)>1                % SoC at n-1  +  power charging will exceed battery capacity limit
+        if (SoC(i - 1) - batt_balance(i) / E_batt_nom) > 1              % SoC at n-1  +  power charging will exceed battery capacity limit
             ELPV(i) = E_batt(i - 1) - batt_balance(i) - E_batt_nom;     % Power not being utilized is the amount of power not charged to the battery, and must be dumped
             batt_balance(i) = E_batt(i - 1) - E_batt_nom;               % Updating batt_balance to actual amount charged
             E_batt(i) = E_batt_nom;                                     % Battery is full, thus energy stored = max energy in batt
@@ -82,7 +81,7 @@ for i = 2:length(irr)
             SoC(i) = E_batt(i) / E_batt_nom;
         end
     end
-        
+
     % Discharging the battery
     if batt_balance(i) > 0                                              % PV production is lower than Load consumption
         EB_flow = batt_balance(i) / eta_disch;                          % Energy flow from the battery, including losses in discharging

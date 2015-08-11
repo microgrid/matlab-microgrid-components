@@ -130,7 +130,7 @@ for year = loadCurve_titles                                          % outer loo
     % SYSTEM SIMULATION AND PERFORMANCE INDICATORs COMPUTATION
 
     % Computing Number (N) of simulations
-    n_PV = ((max_PV - min_PV) / step_PV) + 1;   % N. of simulated PV power sizes (i.e. N. of iteration on PV)
+    n_PV = ((max_PV - min_PV) / step_PV) + 1;               % N. of simulated PV power sizes (i.e. N. of iteration on PV)
     n_batt = ((max_batt - min_batt) / step_batt) + 1;       % N. of simulated Battery capacity (i.e. N. of iteration on Batt)
 
     % n = 0;
@@ -139,18 +139,19 @@ for year = loadCurve_titles                                          % outer loo
     for PV_i = 1 : n_PV                                                 
         % n = n + 1;    % nowhere else used (?)
         PVpower_i = min_PV + (PV_i - 1) * step_PV;                      % iteration on PV power
-        T_cell = T_amb + irr .* (T_nom - 20) / 0.8;     % Cell temperature as function of ambient temperature [C]
+        T_cell = T_amb + irr .* (T_nom - 20) / 0.8;                     % Cell temperature as function of ambient temperature [C]
         eff_cell = 1 - coeff_T_pow .* (T_cell - T_ref);                 % cell efficiency as function of temperature
-        P_pv = irr .* PVpower_i .* eff_cell .* eff_BoS;                 % array with Energy from the PV (EPV) for each time step throughout the year
+        P_pv = irr .* PVpower_i .* eff_cell .* eff_BoS;                 % array with Energy from the PV (EPV) for each time step throughout the year. see p.191 of thesis Stefano Mandelli
         
         batt_balance = Load / eff_inv - P_pv;                           % array containing the power balance of the battery for each time step throughout the year (negative value is charging battery) [kWh]
         
         % iterate over all battery capacities from min_batt to max_batt
         for batt_i = 1 : n_batt                                               
-            batt_cap_i = min_batt + (batt_i - 1) * step_batt;                        % iteration on battery capacity
-            EPV(PV_i, batt_i) = sum(P_pv, 2);                              % computing EPV value
+            batt_cap_i = min_batt + (batt_i - 1) * step_batt;           % iteration on battery capacity
+            EPV(PV_i, batt_i) = sum(P_pv, 2);                           % computing EPV value
             SoC(1, 1) = SoC_start;                                      % setting initial state of charge
-            Pow_max = batt_ratio * batt_cap_i;                              % maximum power acceptable by the battery
+            Pow_max = batt_ratio * batt_cap_i;                          % maximum power acceptable by the battery
+            % E_batt(1) = Pow_max * SoC(1);                               % Current energy stored in the battery
             Den_rainflow = 0;                                           % counter for number of cycles battery goes through. Needed for CyclesToFailure()
 
             % iterate through the timesteps of one year
@@ -194,14 +195,14 @@ for year = loadCurve_titles                                          % outer loo
 
             %% Economic Analysis
             % Investment cost
-            costBatt_tot = costBatt_coef_a * batt_cap_i + costBatt_coef_b;                  % battery cost
+            costBatt_tot = costBatt_coef_a * batt_cap_i + costBatt_coef_b;              % battery cost
             peak = max(Load);                                                           % peak Load
             costINV_tot = (peak/eff_inv) * costINV;                                     % inverter cost, inverter is designed on the peak power value
             costPV_tot = costPV * PVpower_i;
             costBoSeI = coeff_cost_BoSeI * (costBatt_tot + costINV_tot + costPV_tot);   % cost of Balance of System (BoS) and Installation
-            IC(PV_i,batt_i) = costPV_tot + costBatt_tot + costINV_tot + costBoSeI;         % Investment Cost (IC)
+            IC(PV_i,batt_i) = costPV_tot + costBatt_tot + costINV_tot + costBoSeI;      % Investment Cost (IC)
             costOeM = costOeM_spec * PVpower_i;                                         % Operations & Maintenance & replacement present cost during plant lifespan
-            years_to_go_batt = 1/Den_rainflow;                                                % batteries should be replaced after this number of years
+            years_to_go_batt = 1/Den_rainflow;                                          % batteries should be replaced after this number of years
             if years_to_go_batt > max_y_repl
                years_to_go_batt =  max_y_repl;
             end
