@@ -61,7 +61,7 @@ for year=loadCurve          % outer loop going through all the different data se
     load('solar_data_Phuntsholing_baseline.mat', 'solar_data_Phuntsholing_baseline')    % average hourly global radiation (beam + diffuse) incident on the PV array [kW/m2]. Due to the simulation step [1h], this is also [kWh/m2]
     % load('Tcell_Soroti_h_year.mat', 'Tcell_Soroti_h_year')        % Cell Temperature [°C]
     PVgr = solar_data_Phuntsholing_baseline;
-    filename=(['LoadCurve_normalized_single_3percent_',num2str(year),'.mat'])
+    filename=(['LoadCurve_normalized_single_3percent_',num2str(year),'.mat']);
     data=importdata(filename);                                      % import load data 
     t_amb=importdata('surface_temp_phuent_2004_hour.mat');          % import ambient temperature data
     NOCT=47;                                                        % Nominal Operating Cell temperature [°C]
@@ -91,7 +91,7 @@ for year=loadCurve          % outer loop going through all the different data se
         costPV = 1000;              % PV panel cost [€/kW] (source: Uganda data)
         costINV = 500;              % inverter cost [€/kW] (source: MCM_Energy Lab + prof. Silva exercise, POLIMI)
         costOeM_spec = 50;          % O&M cost for the overall plant [€/kW*year] (source: MCM_Energy Lab)
-        coeff_cost_BOSeI = 0.2;     % Installation and BOS cost as % of cost of PV+B+Inv [% of Investment cost] (source: Masters, “Renewable and Efficient Electric Power Systems,”)
+        coeff_cost_BOSeI = 0.2;     % Installation and BOS cost as % of cost of PV+B+Inv [% of Investment cost] (source: Masters, �Renewable and Efficient Electric Power Systems,�)
 
         % Battery cost defined as: costB = costB_coef_a * battery_capacity [kWh] + costB_coef_b (source: Uganda data)
         costB_coef_a = 140;         %132.78;
@@ -100,12 +100,12 @@ for year=loadCurve          % outer loop going through all the different data se
         r_int = 0.06;               % rate of interest defined as (HOMER) = nominal rate - inflation
 
         % Simulation input data
-        min_PV = 285;              % Min PV power simulated [kW]
-        max_PV = 300;              % Max PV power simulated [kW]
-        step_PV = 5;                % PV power simulation step [kW]
-        min_B = 50;               % Min Battery capacity simulated [kWh]
-        max_B = 800;               % Max Battery capacity simulated [kWh]
-        step_B = 2;                % Battery capacity simulation step [kWh]
+        min_PV = 285;              % Min PV power simulated [kW] (original: 285)
+        max_PV = 300;              % Max PV power simulated [kW] (original: 300)
+        step_PV = 5;                % PV power simulation step [kW] (original: 5)
+        min_B = 50;               % Min Battery capacity simulated [kWh] (original: 50)
+        max_B = 800;               % Max Battery capacity simulated [kWh] (original: 800)
+        step_B = 2;                % Battery capacity simulation step [kWh] (original: 2)
 
         %% PART 3
         % INPUT DATA ELABORATION
@@ -228,9 +228,9 @@ for year=loadCurve          % outer loop going through all the different data se
         %% PART 5
         % LOOKING FOR THE OPTIMUM PLANT AS REGARDS THE TARGETED LLP
 
-        LLP_var = 0.005;                                                                        % accepted error band near targeted LLP value
-        [posPV, posB] = find( (LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var) );    % find systems with targeted LLP (within error band)
-        NPC_opt = min( diag(NPC(posPV, posB)) );                                                 % find minimum NPC for the target LLP;
+        LLP_var = 0.5;                                                                        % accepted error band near targeted LLP value (original: 0.005)
+        [posPV, posB] = find( (LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var) );  % find systems with targeted LLP (within error band)
+        NPC_opt = min( diag(NPC(posPV, posB)) );                                              % find minimum NPC for the target LLP;
         for i = 1 : size(posPV, 1)
             if NPC(posPV(i), posB(i)) == NPC_opt
                 PV_opt = posPV(i);
@@ -239,7 +239,7 @@ for year=loadCurve          % outer loop going through all the different data se
         end
         kW_opt = (PV_opt-1) * step_PV + min_PV;
         kWh_opt = (B_opt-1) * step_B + min_B;
-        LLP_opt = LLP(PV_opt, B_opt)
+        LLP_opt = LLP(PV_opt, B_opt);
         LCoE_opt = LCoE(PV_opt, B_opt);
         IC_opt=IC(PV_opt, B_opt);
 
