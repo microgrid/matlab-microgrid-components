@@ -54,7 +54,7 @@ columns = length(loadCurve_titles) * 6;                       % since we will be
 MA_opt_norm_bhut_jun15_20_10 = zeros(length(x_llp), columns); % initialization of the optimal-solution matrix
 
 % Simulation input data
-min_PV = 285;               % Min PV power simulated [kW]
+min_PV = 280;               % Min PV power simulated [kW]
 max_PV = 300;               % Max PV power simulated [kW]
 step_PV = 5;                % PV power simulation step [kW]
 min_batt = 50;              % Min Battery capacity simulated [kWh]
@@ -74,10 +74,11 @@ for year = loadCurve_titles                                   % outer loop going
     load_curves_counter = load_curves_counter + 1;
     
     % importing 3 data files that describe one year with hourly resolution i.e. 24 x 365 = (8760)-row vectors.                                                
-    irr = importdata('dataBase\solar_data_Phuntsholing_baseline.mat');                      % Use \ for Windows and / for Mac and Linux
-    filename = (['dataBase\LoadCurve_normalized_single_3percent_',num2str(year),'.mat']);   % Average hourly global radiation (beam + diffuse) incident on the PV array [kW/m2]. Due to the simulation step [1h], this is also [kWh/m2]
+    path_to_dataBase = 'C:\Users\MicrogridProject\Documents\MATLAB\Jeemijn\matlab-microgrid-components\dataBase\';
+    irr = importdata([path_to_dataBase, 'solar_data_Phuntsholing_baseline.mat']);                      % Use \ for Windows and / for Mac and Linux
+    filename = ([path_to_dataBase, 'LoadCurve_normalized_single_3percent_',num2str(year),'.mat']);   % Average hourly global radiation (beam + diffuse) incident on the PV array [kW/m2]. Due to the simulation step [1h], this is also [kWh/m2]
     Load = importdata(filename);                                                            % Import Load curve 
-    T_amb = importdata('dataBase\surface_temp_phuent_2004_hour.mat');                       % Import ambient temperature data
+    T_amb = importdata([path_to_dataBase, 'surface_temp_phuent_2004_hour.mat']);                       % Import ambient temperature data
          
     % Declaration of simulation variables
     EPV = zeros(n_PV, n_batt);              % Energy PV (EPV): yearly energy produced by the PV array [kWh]
@@ -268,7 +269,7 @@ for year = loadCurve_titles                                   % outer loop going
         %% PART 3
         % LOOKING FOR THE OPTIMUM PLANT AS REGARDS THE TARGETED LLP
 
-        LLP_var = 0.005;                                                                            % accepted error band near targeted LLP value
+        LLP_var = 0.15;                                                                            % accepted error band near targeted LLP value
         [posPV, posBatt] = find( (LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var) );     % find possible systems with targeted LLP (within error band). Recall that LLP is a (n_PV x n_batt)-matrix. Example of this syntax: http://se.mathworks.com/help/matlab/ref/find.html#budq84b-1
         NPC_opt = min( diag(NPC(posPV, posBatt)) );                                                 % finds the system within the targeted set that has the minimal NPC
         
