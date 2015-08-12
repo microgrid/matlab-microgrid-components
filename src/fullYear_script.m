@@ -12,9 +12,10 @@ close all
 
 tic     % Start timer for the script
 
-irr = importdata('solar_data_Phuntsholing_baseline.mat');             % Input of solar data in [kW]
-T_amb = importdata('surface_temp_phuent_2004_hour.mat');              % Importing ambient temperature of site in [C]
-Load = importdata('LoadCurve_normalized_single_3percent_100.mat');    % Load data in kW, hourly resolution
+path_to_dataBase = 'C:\Users\MicrogridProject\Documents\MATLAB\Jeemijn\matlab-microgrid-components\dataBase\';
+irr = importdata([path_to_dataBase,'solar_data_Phuntsholing_baseline.mat']);             % Input of solar data in [kW]
+T_amb = importdata([path_to_dataBase,'surface_temp_phuent_2004_hour.mat']);              % Importing ambient temperature of site in [C]
+Load = importdata([path_to_dataBase,'LoadCurve_normalized_single_3percent_100.mat']);    % Load data in kW, hourly resolution
 
 % Declaration of variables
 ELPV = zeros(1,length(irr));          % Energy loss PV (Energy not exploited)
@@ -28,12 +29,12 @@ E_batt = zeros(1,length(irr));        % Current energy stored in the battery
 
 % INPUT VALUES
 P_syst_des = 295;         % INPUT Desired system capacity in [kW]   N.B. 'P_syst_des' is equivalent to 'PV_power_i' in the SAPV_buthan_01 script.
-E_batt_nom = 1385;        % INPUT Capacity of the battery in [kWh]  N.B. 'E_batt_nom' is equivalent to 'Pow_max' in the SAPV_buthan_01 script. NO!
+E_batt_nom = 1385;        % INPUT Capacity of the battery in [kWh]  N.B. 'E_batt_nom' is equivalent to 'Batt_cap_i' in the SAPV_buthan_01 script.
 
 % PV panels
 eta_BoS = 0.85;           % Balance Of System: account for such factors as soiling of the panels, wiring losses, shading, snow cover, aging, and so on
 temp_degen = 0.004;       % Derating of panel's power due to temperature [ /  C]
-T_ref = 25;               % Nominal ambient test - temperature of the panels [C]
+T_ref = 25;               % Nominal ambient test-temperature of the panels [C]
 T_nom = 47;               % Nominal operation temperature in [C]
 
 % Battery 
@@ -58,7 +59,7 @@ irr_nom = 0.8;                              % Irradiation at nominal operation [
 % P_syst = n_mod * P_mod;                     % Actually installed capacity [W]
 
 % PV-cell-temperature
-T_cell = T_amb  +  irr. * (T_nom - T_ref) / irr_nom;    % Cell temperature as function of ambient temperature
+T_cell = T_amb  +  irr .* (T_nom - T_ref) / irr_nom;    % Cell temperature as function of ambient temperature
 eta_cell = 1 - temp_degen * (T_cell - T_ref);           % Cell efficiency as function of temperature
 P_pv =  irr.* eta_cell.* P_syst_des * eta_BoS; % Power produced by the PV-installation. see p.191 of thesis Stefano Mandelli
 
@@ -81,11 +82,10 @@ for i = 2:length(irr)
             SoC(i) = E_batt(i) / E_batt_nom;
         end
     end
-
     % Discharging the battery
     if batt_balance(i) > 0                                              % PV production is lower than Load consumption
         EB_flow = batt_balance(i) / eta_disch;                          % Energy flow from the battery, including losses in discharging
-        if (SoC(i - 1) - EB_flow / E_batt_nom) > = SoC_min              % Sufficient power in battery
+        if (SoC(i - 1) - EB_flow / E_batt_nom) >= SoC_min              % Sufficient power in battery
             E_batt(i) = E_batt(i - 1) - batt_balance(i);
             SoC(i) = E_batt(i) / E_batt_nom;
         else                                                            % Not enough power in battery
@@ -97,7 +97,6 @@ for i = 2:length(irr)
             batt_balance(i) = (SoC(i - 1) - SoC(i)) * E_batt_nom;
         end
     end
-
     if batt_balance(i) == 0;            % No power exchanged with the battery
         E_batt(i) = E_batt(i - 1);      % Energy stored in battery remains the same
         SoC(i) = SoC(i - 1);            % State of Charge remains the same
@@ -128,9 +127,9 @@ legend('Load profile','Energy from PV', 'Energy flow in battery')
 figure(2)
 plot(SoC,'Color',[64 127 255] / 255)
 hold on
-plot(LL. / E_batt_nom + SoC_min,'Color',[255 91 60] / 255)
+plot( ./ E_batt_nom + SoC_min,'Color',[255 91 60] / 255)
 hold on
-plot(ELPV. / E_batt_nom + 1,'Color',[142 178 68] / 255)
+plot(ELPV ./ E_batt_nom + 1,'Color',[142 178 68] / 255)
 hold off
 xlabel('Time over the year [hour]')
 ylabel('Power refered to State of Charge of the battery')
