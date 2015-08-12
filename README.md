@@ -21,6 +21,7 @@ N.B. CyclesToFailure() also depends on the battery and must be changed then.
 - [ ] give error if NPC_opt empty and define PV_opt, Batt_opt for that case 
 - [ ] check that range of PV and battery is divisible by PV_step and Batt_step
 - [ ] evt. check that size of dimensions is larger than one s.t. taken over right dimension?
+- [ ] give error if squeeze() squeezes more than time due to weird initial values
 
 ## Todo list (assumptions)
 - [ ] coeff_cost_BoSeI is now 20% of total cost. Is this reliable or can it vary a lot? May have large impact on costs.
