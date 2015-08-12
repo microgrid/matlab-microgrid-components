@@ -127,7 +127,7 @@ legend('Load profile','Energy from PV', 'Energy flow in battery')
 figure(2)
 plot(SoC,'Color',[64 127 255] / 255)
 hold on
-plot( ./ E_batt_nom + SoC_min,'Color',[255 91 60] / 255)
+plot(LL ./ E_batt_nom + SoC_min,'Color',[255 91 60] / 255)
 hold on
 plot(ELPV ./ E_batt_nom + 1,'Color',[142 178 68] / 255)
 hold off
