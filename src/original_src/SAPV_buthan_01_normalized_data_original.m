@@ -100,9 +100,9 @@ for year=loadCurve          % outer loop going through all the different data se
         r_int = 0.06;               % rate of interest defined as (HOMER) = nominal rate - inflation
 
         % Simulation input data
-        min_PV = 285;              % Min PV power simulated [kW] (original: 285)
+        min_PV = 280;              % Min PV power simulated [kW] (original: 285)
         max_PV = 300;              % Max PV power simulated [kW] (original: 300)
-        step_PV = 5;                % PV power simulation step [kW] (original: 5)
+        step_PV = 2;                % PV power simulation step [kW] (original: 5)
         min_B = 50;               % Min Battery capacity simulated [kWh] (original: 50)
         max_B = 800;               % Max Battery capacity simulated [kWh] (original: 800)
         step_B = 2;                % Battery capacity simulation step [kWh] (original: 2)
@@ -228,7 +228,7 @@ for year=loadCurve          % outer loop going through all the different data se
         %% PART 5
         % LOOKING FOR THE OPTIMUM PLANT AS REGARDS THE TARGETED LLP
 
-        LLP_var = 0.5;                                                                        % accepted error band near targeted LLP value (original: 0.005)
+        LLP_var = 0.15;                                                                        % accepted error band near targeted LLP value (original: 0.005)
         [posPV, posB] = find( (LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var) );  % find systems with targeted LLP (within error band)
         NPC_opt = min( diag(NPC(posPV, posB)) );                                              % find minimum NPC for the target LLP;
         for i = 1 : size(posPV, 1)

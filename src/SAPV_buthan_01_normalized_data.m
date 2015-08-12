@@ -99,9 +99,9 @@ for year = loadCurve                                          % outer loop going
     r_int = 0.06;               % rate of interest defined as (HOMER) = nominal rate - inflation
 
     % Simulation input data
-    min_PV = 285;               % Min PV power simulated [kW]
+    min_PV = 280;               % Min PV power simulated [kW]
     max_PV = 300;               % Max PV power simulated [kW]
-    step_PV = 5;                % PV power simulation step [kW]
+    step_PV = 2;                % PV power simulation step [kW]
     min_B = 50;                 % Min Battery capacity simulated [kWh]
     max_B = 800;                % Max Battery capacity simulated [kWh]
     step_B = 2;                 % Battery capacity simulation step [kWh]
@@ -229,7 +229,7 @@ for year = loadCurve                                          % outer loop going
         %% PART 5
         % LOOKING FOR THE OPTIMUM PLANT AS REGARDS THE TARGETED LLP
 
-        LLP_var = 0.005;                                                                            % accepted error band near targeted LLP value
+        LLP_var = 0.15;                                                                            % accepted error band near targeted LLP value
         [posPV, posBatt] = find( (LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var) );     % find possible systems with targeted LLP (within error band). Recall that LLP is a (n_PV x n_B)-matrix. Example of this syntax: http://se.mathworks.com/help/matlab/ref/find.html#budq84b-1
         NPC_opt = min( diag(NPC(posPV, posBatt)) );                                                 % finds the system within the targeted set that has the minimal NPC
         
