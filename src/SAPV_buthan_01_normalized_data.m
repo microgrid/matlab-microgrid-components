@@ -56,7 +56,7 @@ MA_opt_norm_bhut_jun15_20_10 = zeros(length(x_llp), columns); % initialization o
 % Simulation input data
 min_PV = 280;               % Min PV power simulated [kW]
 max_PV = 300;               % Max PV power simulated [kW]
-step_PV = 5;                % PV power simulation step [kW]
+step_PV = 2;                % PV power simulation step [kW]
 min_batt = 50;              % Min Battery capacity simulated [kWh]
 max_batt = 800;             % Max Battery capacity simulated [kWh]
 step_batt = 5;              % Battery capacity simulation step [kWh]
@@ -130,7 +130,7 @@ for year = loadCurve_titles                                   % outer loop going
     step_PV = 2;                % PV power simulation step [kW]
     min_B = 50;                 % Min Battery capacity simulated [kWh]
     max_B = 800;                % Max Battery capacity simulated [kWh]
-    step_B = 2;                 % Battery capacity simulation step [kWh]
+    step_B = 5;                 % Battery capacity simulation step [kWh]
 
 	% info not being used:
     % P_mod = 250;                                % Module power in [W]
@@ -310,29 +310,29 @@ for year = loadCurve_titles                                   % outer loop going
 
         if makePlot == 1
 %         if false
-            figure(4);
-            mesh(min_batt : step_batt : max_batt , min_PV : step_PV : max_PV , NPC);
-            title('Net Present Cost');
-            set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
-            xlabel('Battery Bank size [kWh]');
-            ylabel('PV array size [kW]');
+%             figure(4);
+%             mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, NPC);
+%             title('Net Present Cost');
+%             set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+%             xlabel('Battery Bank size [kWh]');
+%             ylabel('PV array size [kW]');
 
             figure(5);
-            mesh(min_batt : step_batt : max_batt , min_PV : step_PV : max_PV , LLP);
+            mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, LLP);
             title('Loss of Load Probability');
             set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
             xlabel('Battery Bank size [kWh]');
             ylabel('PV array size [kW]');
 
             figure(6);
-            mesh(min_batt : step_batt : max_batt , min_PV : step_PV : max_PV , LCoE);
+            mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, LCoE);
             title('Levelized Cost of Energy');
             set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
             xlabel('Battery Bank size [kWh]');
             ylabel('PV array size [kW]');
 
             figure(7);
-            mesh(min_batt : step_batt : max_batt , min_PV : step_PV : max_PV , num_batt);
+            mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, num_batt);
             title('Num. of battery employed due to lifetime limit');
             set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
             xlabel('Battery Bank size [kWh]');
