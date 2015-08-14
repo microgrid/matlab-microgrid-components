@@ -14,7 +14,7 @@ N.B. CyclesToFailure() also depends on the battery and must be changed then.
 - [ ] E. visual interface of graphs (Honorat)
 - [ ] F. Think about dependance on square meters. x, t, m2. (m2 can be obtained from the rated power PV_size and the type of PV). Alternative is to write this out (and ask for these inputs explicitly).
 - [ ] genetic algorithm? (Honorat)
-- [ ] check that fig(6) is correct i.e. that always 8 sets of batteries.
+- [ ] check that fig(6) is correct i.e. that always 8 sets of batteries. It is not! Compare with output of original script (stepsizes 2 and 5).
 
 ## Todo list (tests)
 - [ ] give error if SoC < 20% (It may never be zero)
