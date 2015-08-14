@@ -9,14 +9,16 @@
 %   []
 %   €
 %   ''
+%   \
 
 %% clear
 clear all;
 close all;
 
 %% importing data
-data_small = importdata('MA_opt_phuentsholing_10_1.mat');
-data_large = importdata('MA_opt_phuentsholing_100_10.mat');
+path_to_dataBase = 'C:\Users\MicrogridProject\Documents\MATLAB\Jeemijn\matlab-microgrid-components\dataBase\';  % Use \ for Windows and / for Mac and Linux
+data_small = importdata([path_to_dataBase,'MA_opt_phuentsholing_10_1.mat']);
+data_large = importdata([path_to_dataBase,'MA_opt_phuentsholing_100_10.mat']);
 
 % DESCRIPTION OF THE DATAFILES: 
 
@@ -66,6 +68,7 @@ title('LLP versus IC for optimal system choices');
 legend([blue_plot red_plot], '1-10% of total load','10-100% of total load');   % only show 1 of the blue and 1 of the red plots in legend
 hold off;
 
-% print('cost_vs_llp_linear_plot', '-dpng');                                       % save plot as .png in current directory
-% print('cost_vs_llp_loglinear_plot', '-dpng');                                       
-print('cost_vs_llp_loglog_plot', '-dpng');                                       
+path_to_results = 'C:\Users\MicrogridProject\Documents\MATLAB\Jeemijn\matlab-microgrid-components\results\';  % Use \ for Windows and / for Mac and Linux
+% print([path_to_results,'cost_vs_llp_linear_plot'], '-dpng');                  % save plot as .png in the results directory
+% print([path_to_results,'cost_vs_llp_loglinear_plot'], '-dpng');                                       
+print([path_to_results,'cost_vs_llp_loglog_plot'], '-dpng');
