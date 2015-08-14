@@ -2,7 +2,7 @@
 % It is very simplified, and is to give a fast simulation of the situation
 % over the year, based on simple input-data.
 % This script is a combination of the script SAPV_buthan_01[...] from Stefano Mandelli
-% and 'fullYear_script' from Håkon Duus. 
+% and 'fullYear_script' from Hkon Duus. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTRODUCTION
@@ -88,8 +88,8 @@ for year = loadCurve_titles                                   % outer loop going
     batt_balance = zeros(1,length(irr));    % Powerflow in battery. Positive flow out from battery, negative flow is charging
     num_batt = zeros(n_PV, n_batt);         % number of batteries employed due to lifetime limit
     SoC = zeros(1,size(Load,2));            % to save step-by-step SoC (State of Charge) of the battery
-    IC = zeros(n_PV, n_batt);               % Investment Cost (IC) [€]
-    YC = zeros(n_PV, n_batt);               % Operations & Maintenance & replacement; present cost [€]
+    IC = zeros(n_PV, n_batt);               % Investment Cost (IC) []
+    YC = zeros(n_PV, n_batt);               % Operations & Maintenance & replacement; present cost []
 
     %% System components 
     % System details and input variables are as follows
@@ -97,7 +97,7 @@ for year = loadCurve_titles                                   % outer loop going
     % PV panels
     eff_BoS = 0.85;             % Balance Of System: account for such factors as soiling of the panels, wiring losses, shading, snow cover, aging, and so on
     T_ref = 20;                 % Nominal ambient test-temperature of the panels [C] % todo in fullYear script this was 25 and in SAPV it was 20. which one?
-    T_nom = 47;                 % Nominal Operating Cell Temperature [°C]
+    T_nom = 47;                 % Nominal Operating Cell Temperature [C]
     coeff_T_pow = 0.004;        % Derating of panel's power due to temperature [/C]
     irr_nom = 0.8;              % Irradiation at nominal operation [kW / m^2]
 
@@ -113,10 +113,10 @@ for year = loadCurve_titles                                   % outer loop going
     eff_inv = 0.9;              % inverter efficiency
 
     % Economics
-    costPV = 1000;              % PV panel cost [€/kW] (source: Uganda data)
-    costINV = 500;              % Inverter cost [€/kW] (source: MCM_Energy Lab + prof. Silva exercise, POLIMI)
-    costOeM_spec = 50;          % Operations & Maintenance cost for the overall plant [€/kW*year] (source: MCM_Energy Lab)
-    coeff_cost_BoSeI = 0.2;     % Installation (I) and BoS cost as % of cost of PV+battery+Inv [% of Investment cost] (source: Masters, “Renewable and Efficient Electric Power Systems,”)
+    costPV = 1000;              % PV panel cost [/kW] (source: Uganda data)
+    costINV = 500;              % Inverter cost [/kW] (source: MCM_Energy Lab + prof. Silva exercise, POLIMI)
+    costOeM_spec = 50;          % Operations & Maintenance cost for the overall plant [/kW*year] (source: MCM_Energy Lab)
+    coeff_cost_BoSeI = 0.2;     % Installation (I) and BoS cost as % of cost of PV+battery+Inv [% of Investment cost] (source: Masters, Renewable and Efficient Electric Power Systems,)
 
     % Battery cost defined as: costBatt_tot = costBatt_coef_a * battery_capacity [kWh] + costBatt_coef_b (source: Uganda data)
     costBatt_coef_a = 140;      % variable cost [per kWh]  %132.78;
@@ -124,7 +124,15 @@ for year = loadCurve_titles                                   % outer loop going
     LT = 20;                    % plant LifeTime [year] 
     r_int = 0.06;               % rate of interest defined as (HOMER) = nominal rate - inflation
 
-    % info not being used:
+    % Simulation input data
+    min_PV = 280;               % Min PV power simulated [kW]
+    max_PV = 300;               % Max PV power simulated [kW]
+    step_PV = 2;                % PV power simulation step [kW]
+    min_B = 50;                 % Min Battery capacity simulated [kWh]
+    max_B = 800;                % Max Battery capacity simulated [kWh]
+    step_B = 2;                 % Battery capacity simulation step [kWh]
+
+	% info not being used:
     % P_mod = 250;                                % Module power in [W]
     % n_mod = ceil(P_syst_des * 1e3 / P_mod);     % Number of modules required for the system of given size
     % a_module = 1.65;                            % Module area in [m^2]
@@ -267,7 +275,7 @@ for year = loadCurve_titles                                   % outer loop going
     CRF = (r_int * ((1 + r_int)^LT)) / (((1 + r_int)^LT) - 1);              % Capital Recovery Factor
     total_loss_load = squeeze(sum(LL,1));                                   % squeeze() throws away all matrix dimensions with size 1 (in this case the time that has been summed over)
     LLP = total_loss_load / sum(Load, 2);                                   % Loss of Load Probability w.r.t. total load
-    LCoE = (NPC * CRF)./(sum(Load, 2) - total_loss_load);                   % Levelized Cost of Energy i.e. cost per kWh (here in €) of building and operating the plant over an assumed life cycle. This is important as we want it to be competitive with the grid LCoE. See eqn. (7.6) in thesis Stefano Mandelli.
+    LCoE = (NPC * CRF)./(sum(Load, 2) - total_loss_load);                   % Levelized Cost of Energy i.e. cost per kWh (here in ) of building and operating the plant over an assumed life cycle. This is important as we want it to be competitive with the grid LCoE. See eqn. (7.6) in thesis Stefano Mandelli.
         
     save('results.mat')
 
