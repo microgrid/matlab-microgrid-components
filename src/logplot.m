@@ -9,16 +9,14 @@
 %   []
 %   €
 %   ''
-%   \
 
 %% clear
 clear all;
 close all;
 
 %% importing data
-path_to_dataBase = 'C:\Users\MicrogridProject\Documents\MATLAB\Jeemijn\matlab-microgrid-components\dataBase\';  % Use \ for Windows and / for Mac and Linux
-data_small = importdata([path_to_dataBase,'MA_opt_phuentsholing_10_1.mat']);
-data_large = importdata([path_to_dataBase,'MA_opt_phuentsholing_100_10.mat']);
+data_small = importdata('MA_opt_phuentsholing_10_1.mat');
+data_large = importdata('MA_opt_phuentsholing_100_10.mat');
 
 % DESCRIPTION OF THE DATAFILES: 
 
@@ -27,8 +25,7 @@ data_large = importdata([path_to_dataBase,'MA_opt_phuentsholing_100_10.mat']);
 
 % For example, data_small is sorted as:
 % - in the first 6 columns (1-6) are the 6 optimal parameters for supplying 1% of total
-% load. Namely the 6 parameters: 
-% LLP_opt NPC_opt kW_opt kWh_opt LCoE_opt IC_opt
+% load. Namely the 6 parameters XXXXXXX
 % - the 20 rows give the 20 optimal systems that are found for each
 % fixed percentage of total load
 % - in the second 6 columns (7-12) are the 6 optimal parameters for supplying 2% of total
@@ -69,7 +66,6 @@ title('LLP versus IC for optimal system choices');
 legend([blue_plot red_plot], '1-10% of total load','10-100% of total load');   % only show 1 of the blue and 1 of the red plots in legend
 hold off;
 
-path_to_results = 'C:\Users\MicrogridProject\Documents\MATLAB\Jeemijn\matlab-microgrid-components\results\';  % Use \ for Windows and / for Mac and Linux
-% print([path_to_results,'cost_vs_llp_linear_plot'], '-dpng');                  % save plot as .png in the results directory
-% print([path_to_results,'cost_vs_llp_loglinear_plot'], '-dpng');                                       
-print([path_to_results,'cost_vs_llp_loglog_plot'], '-dpng');                                       
+% print('cost_vs_llp_linear_plot', '-dpng');                                       % save plot as .png in current directory
+% print('cost_vs_llp_loglinear_plot', '-dpng');                                       
+print('cost_vs_llp_loglog_plot', '-dpng');                                       
