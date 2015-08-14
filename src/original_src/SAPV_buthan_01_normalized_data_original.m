@@ -43,7 +43,7 @@ tic
 
 x_llp=linspace(1,20,20);    % range of LLP_target 
 loadCurve=[100];                  % number of data-sets
-makePlot=0;                 % set to 1 if plots are desired
+makePlot=1;                 % set to 1 if plots are desired
 colomns=length(loadCurve)*6;
 MA_opt_norm_bhut_jun15_20_10=zeros(length(x_llp),colomns);    % initialization of the optimal-solution matrix
 
@@ -218,7 +218,7 @@ for year=loadCurve          % outer loop going through all the different data se
             LLP = LL / sum(LC, 2);                                                  % Loss of Load Probability
             LCoE = (NPC * CRF)./((sum(LC, 2)).*(1 - LLP));                          % Levelized Cost of Energy
             
-        save('results.mat')
+%         save('results.mat')
 
     for a_x=1:length(x_llp)
         
