@@ -376,37 +376,88 @@ end
 %% make a listplot of results PV vs Batt size with LLP indicated in colours
 
 figure(8)
-% create a grid with plotted dots on each raster point of considered PV and batt sizes
-x_val = min_batt : step_batt : max_batt;
+
+% fill the circles/dots of the plot if within budget constraint
+% to do this we split the data in two sets, called 'filled' and 'empty'
+budget = 1000000;                                       % budget constraint [€]
+counter_fill = 0;
+counter_empty = 0;
 for i = 1:n_PV
-    this_PV = min_PV + (i - 1) * step_PV;
-    y_val(1:n_batt) = this_PV;                  % create an array of length n_batt with each element equal to this_PV 
-    % determine colour of grid points depending on LLP value:
-%     c = linspace(1,10,length(x_val));
-    colour = LLP(i,1:n_batt);                   % LLP is a (PV x batt)-matrix (i.e. x and y the other way around than in this plot) 
-    colour_rounded = round(colour,1);           % round to steps of 10%
-    
-    % fill if within budget constraint
-    budget = 1000000;                                         % budget constraint [€]
-    fill_or_not = NPC(i,1:n_batt) <= budget;                % becomes array of 0 and 1
-    markertype(1:length(fill_or_not))= cellstr('');         % create array of empty strings
-    for i=1:length(fill_or_not)
-        if fill_or_not(i) == 1                              
-            markertype(i) = cellstr('filled');              % fill circles if option is within budget limit          
+    for j = 1:n_batt
+        this_PV = min_PV + (i - 1) * step_PV;
+        this_batt = min_batt + (j - 1) * step_batt;
+        if (NPC(i,j) <= budget) == 1            % fill circle if within budget
+            x_filled(counter_fill) = this_batt;      % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
+            y_filled(counter_fill) = this_PV;        % todo not the safest way to start filling a matrix with unknown dimensions?
+            counter_fill = counter_fill + 1;
         else
-            markertype(i) = cellstr('o');
+            x_empty(counter_empty) = this_batt;       % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
+            y_empty(counter_empty) = this_PV;
+            counter_empty = counter_empty + 1;
         end
     end
-    
-    scatter(x_val,y_val,[],colour_rounded,'filled')  % use 'o' for empty dots and 'filled' for filled dots
-    %todo replace 'filled' in line above by markertype but then working
-    
-    hold on
 end
-hold off
-xlabel('Battery bank size [kWh]')
-ylabel('PV array size [kW]')
-% legend('red','','','')    % todo
+
+if (counter_empty + counter_fill == n_PV * n_batt) ~= 1
+    error('ERROR: The number of datapoints in the two subsets ''filled'' and ''empty'' do not add up to the original dataset.')
+end
+     
+%todo plot parts separately after fixing error.
+
+
+
+
+
+
+% 
+% 
+% 
+% % create a grid with plotted dots on each raster point of considered PV and batt sizes
+% x_val = min_batt : step_batt : max_batt;
+% for i = 1:n_PV
+%     this_PV = min_PV + (i - 1) * step_PV;
+%     
+%     y_val(1:n_batt) = this_PV;                  % create an array of length n_batt with each element equal to this_PV 
+%     % determine colour of grid points depending on LLP value:
+% %     c = linspace(1,10,length(x_val));
+%     colour = LLP(i,1:n_batt);                   % LLP is a (PV x batt)-matrix (i.e. x and y the other way around than in this plot) 
+%     colour_rounded = round(colour,1);           % round to steps of 10% s.t. colour differences in the plot can be seen better
+%     
+%     % fill the circles/dots of the plot if within budget constraint
+%     % to do this we split the data in two sets, called 'filled' and 'empty'
+%     if (NPC(i,1:n_batt) <= budget) == 1         % fill circle if within budget
+% %         x_val_filled(counter) = 
+%         y_val_filled(counter) = this_PV;
+%     else
+%         o
+%     end
+%    
+%     
+%     
+%     
+%     
+%     
+%     
+%     % fill the circles/dots of the plot if within budget constraint
+%     fill_or_not = NPC(i,1:n_batt) <= budget;                % becomes array of 0 and 1
+%     markertype(1:length(fill_or_not))= cellstr('');         % create array of empty strings
+%     for i=1:length(fill_or_not)
+%         if fill_or_not(i) == 1                              
+%             markertype(i) = cellstr('filled');              % fill circles if option is within budget limit          
+%         else
+%             markertype(i) = cellstr('o');
+%         end
+%     end
+%     
+%     scatter(x_val,y_val,[],colour_rounded,'filled')  % use 'o' for empty dots and 'filled' for filled dots
+%     %todo replace 'filled' in line above by markertype but then working
+%     
+%     hold on
+% end
+% hold off
+% xlabel('Battery bank size [kWh]')
+% ylabel('PV array size [kW]')
+% % legend('red','','','')    % todo
 
 
 %%
