@@ -56,10 +56,10 @@ MA_opt_norm_bhut_jun15_20_10 = zeros(length(x_llp), columns); % initialization o
 % Simulation input data
 min_PV = 280;               % Min PV power simulated [kW]
 max_PV = 300;               % Max PV power simulated [kW]
-step_PV = 2;                % PV power simulation step [kW]
+step_PV = 5;                % PV power simulation step [kW]
 min_batt = 50;              % Min Battery capacity simulated [kWh]
 max_batt = 800;             % Max Battery capacity simulated [kWh]
-step_batt = 5;              % Battery capacity simulation step [kWh]
+step_batt = 30;              % Battery capacity simulation step [kWh]
    
 % Computing Number of simulations
 n_PV = ((max_PV - min_PV) / step_PV) + 1;                     % N. of simulated PV power sizes (i.e. N. of iteration on PV)
@@ -219,7 +219,7 @@ for year = loadCurve_titles                                   % outer loop going
                     area_load_needed_from_batt = trapz(time, Load) - free_area;     % by definition this should be positive
 
                     unmet_load = area_load_needed_from_batt - area_to_batt;
-                    unmet_load_perc = unmet_load / trapz(time, Load) * 100         % equal to Loss of Load Probability. But rough estimate since SoC at end of the day influences next day!
+                    unmet_load_perc = unmet_load / trapz(time, Load) * 100          % equal to Loss of Load Probability. But rough estimate since only comparing totals of load and P_pv! And SoC at end of the day influences next day. (Negative means overproduction)
 
                     % plot functions for an average day in figure(2)
                     nr_days = length(irr) / 24;                    
@@ -259,7 +259,7 @@ for year = loadCurve_titles                                   % outer loop going
                     hold off
                     xlabel('Time over the year [hour]')
                     ylabel('Power refered to State of Charge of the battery')
-                    legend('Overproduction, not utilized', 'Loss of power', 'State of charge')                    
+                    legend('Overproduction, not utilized', 'Loss of power', 'State of charge')
                 end
             end
 
@@ -373,5 +373,42 @@ for year = loadCurve_titles                                   % outer loop going
     end
 end
 
+%% make a listplot of results PV vs Batt size with LLP indicated in colours
+
+figure(8)
+% create a grid with plotted dots on each raster point of considered PV and batt sizes
+x_val = min_batt : step_batt : max_batt;
+for i = 1:n_PV
+    this_PV = min_PV + (i - 1) * step_PV;
+    y_val(1:n_batt) = this_PV;                  % create an array of length n_batt with each element equal to this_PV 
+    % determine colour of grid points depending on LLP value:
+%     c = linspace(1,10,length(x_val));
+    colour = LLP(i,1:n_batt);                   % LLP is a (PV x batt)-matrix (i.e. x and y the other way around than in this plot) 
+    colour_rounded = round(colour,1);           % round to steps of 10%
+    
+    % fill if within budget constraint
+    budget = 1000000;                                         % budget constraint [€]
+    fill_or_not = NPC(i,1:n_batt) <= budget;                % becomes array of 0 and 1
+    markertype(1:length(fill_or_not))= cellstr('');         % create array of empty strings
+    for i=1:length(fill_or_not)
+        if fill_or_not(i) == 1                              
+            markertype(i) = cellstr('filled');              % fill circles if option is within budget limit          
+        else
+            markertype(i) = cellstr('o');
+        end
+    end
+    
+    scatter(x_val,y_val,[],colour_rounded,'filled')  % use 'o' for empty dots and 'filled' for filled dots
+    %todo replace 'filled' in line above by markertype but then working
+    
+    hold on
+end
+hold off
+xlabel('Battery bank size [kWh]')
+ylabel('PV array size [kW]')
+% legend('red','','','')    % todo
+
+
+%%
 toc % End timer
 save('MA_opt_norm_bhut_jun15_20_10.mat','MA_opt_norm_bhut_jun15_20_10')
