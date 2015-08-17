@@ -210,25 +210,7 @@ for year = loadCurve_titles                                   % outer loop going
                     title('Energy produced and estimated load profile over the year (2nd steps PV and Batt)')
                     legend('Load profile','Energy from PV', 'Energy flow from battery')
 
-                    % plot for average day
-                    nr_days = length(irr) / 24;
-                    hour_1 = hour : 24 : (nr_days - 1) * 24 + hour
-                  
-                    
-                    
-                    figure(2)
-                    plot(Load(1:24),'Color',[72 122 255] / 255)
-                    hold on
-                    plot(P_pv(1:24),'Color',[255 192 33] / 255)
-                    hold on
-                    plot(batt_balance_pos(1:24),'Color',[178 147 68] / 255)
-                    hold off
-                    xlabel('Time over the day [hour]')
-                    ylabel('Energy [kWh]')
-                    title('Energy produced and estimated load profile of 1 January (2nd steps PV and Batt)')
-                    legend('Load profile','Energy from PV', 'Energy flow in battery')
-                    
-                    % integration of figure(2) to find rough LLP estimate
+                    % integration of figure(1) to find rough LLP estimate
                     free = min(Load, P_pv);                                         % energy for free, i.e. directly from PV without battery intervenience, is the area under this graph. 
                                                                                     % N.B. Assumption: both Load and P_pv are positive functions
                     time = 1:length(irr);
@@ -238,8 +220,36 @@ for year = loadCurve_titles                                   % outer loop going
 
                     unmet_load = area_load_needed_from_batt - area_to_batt;
                     unmet_load_perc = unmet_load / trapz(time, Load) * 100         % equal to Loss of Load Probability. But rough estimate since SoC at end of the day influences next day!
+
+                    % plot functions for an average day in figure(2)
+                    nr_days = length(irr) / 24;                    
+                    Load_av = zeros(1,24);                              % vector for average daily Load
+                    P_pv_av = zeros(1,24);                              % vector for average daily P_pv
+                    batt_balance_pos_av = zeros(1,24);                  % vector for average daily batt_balance_pos. This is misleading since it is influenced by state of charge of previous days.
+                    for hour = 1:24                                     % iterate over all times 1:00, 2:00 etc.
+                    hours_i = hour : 24 : (nr_days - 1) * 24 + hour;    % range to pick the i-th hour of each day throughout the yearly data, i.e. 1:00 of 1 January, 1:00 of 2 January etc.
+                        for k = hours_i
+                            Load_av(hour) = Load_av(hour) + Load(k);
+                            P_pv_av(hour) = P_pv_av(hour) + P_pv(k);
+                            batt_balance_pos_av(hour) = batt_balance_pos_av(hour) + batt_balance_pos(k);
+                        end
+                        Load_av(hour) = Load_av(hour) / nr_days;
+                        P_pv_av(hour) = P_pv_av(hour) / nr_days;
+                        batt_balance_pos_av(hour) = batt_balance_pos_av(hour) / nr_days;
+                    end
                     
-                    
+                    figure(2)
+                    plot(Load_av,'Color',[72 122 255] / 255)
+                    hold on
+                    plot(P_pv_av,'Color',[255 192 33] / 255)
+                    hold on
+                    plot(batt_balance_pos_av,'Color',[178 147 68] / 255)
+                    hold off
+                    xlabel('Time over the day [hour]')
+                    ylabel('Energy [kWh]')
+                    title('Energy produced and estimated load profile of an average day (2nd steps PV and Batt)')
+                    legend('Load profile','Energy from PV', 'Energy flow in battery')
+                                        
                     figure(3)    
                     plot(ELPV(:,PV_i, batt_i) ./ batt_cap_i + 1,'Color',[142 178 68] / 255)
                     hold on
