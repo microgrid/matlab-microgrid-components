@@ -124,14 +124,6 @@ for year = loadCurve_titles                                   % outer loop going
     LT = 20;                    % plant LifeTime [year] 
     r_int = 0.06;               % rate of interest defined as (HOMER) = nominal rate - inflation
 
-    % Simulation input data
-    min_PV = 280;               % Min PV power simulated [kW]
-    max_PV = 300;               % Max PV power simulated [kW]
-    step_PV = 2;                % PV power simulation step [kW]
-    min_B = 50;                 % Min Battery capacity simulated [kWh]
-    max_B = 800;                % Max Battery capacity simulated [kWh]
-    step_B = 5;                 % Battery capacity simulation step [kWh]
-
 	% info not being used:
     % P_mod = 250;                                % Module power in [W]
     % n_mod = ceil(P_syst_des * 1e3 / P_mod);     % Number of modules required for the system of given size
