@@ -207,9 +207,15 @@ for year = loadCurve_titles                                   % outer loop going
                     hold off
                     xlabel('Time over the year [hour]')
                     ylabel('Energy [kWh]')
-                    title('Energy produced and estimated load profile over the year')
-                    legend('Load profile','Energy from PV', 'Energy flow in battery')
+                    title('Energy produced and estimated load profile over the year (2nd steps PV and Batt)')
+                    legend('Load profile','Energy from PV', 'Energy flow from battery')
 
+                    % plot for average day
+                    nr_days = length(irr) / 24;
+                    hour_1 = hour : 24 : (nr_days - 1) * 24 + hour
+                  
+                    
+                    
                     figure(2)
                     plot(Load(1:24),'Color',[72 122 255] / 255)
                     hold on
@@ -219,8 +225,20 @@ for year = loadCurve_titles                                   % outer loop going
                     hold off
                     xlabel('Time over the day [hour]')
                     ylabel('Energy [kWh]')
-                    title('Energy produced and estimated load profile of 1 January')
+                    title('Energy produced and estimated load profile of 1 January (2nd steps PV and Batt)')
                     legend('Load profile','Energy from PV', 'Energy flow in battery')
+                    
+                    % integration of figure(2) to find rough LLP estimate
+                    free = min(Load, P_pv);                                         % energy for free, i.e. directly from PV without battery intervenience, is the area under this graph. 
+                                                                                    % N.B. Assumption: both Load and P_pv are positive functions
+                    time = 1:length(irr);
+                    free_area = trapz(time, free);                                  % discrete integration using trapeziums. Might not be the best solution for non-linear data. See http://se.mathworks.com/help/matlab/math/integration-of-numeric-data.html
+                    area_to_batt = trapz(time, P_pv) - free_area;                   % by definition this should be positive
+                    area_load_needed_from_batt = trapz(time, Load) - free_area;     % by definition this should be positive
+
+                    unmet_load = area_load_needed_from_batt - area_to_batt;
+                    unmet_load_perc = unmet_load / trapz(time, Load) * 100         % equal to Loss of Load Probability. But rough estimate since SoC at end of the day influences next day!
+                    
                     
                     figure(3)    
                     plot(ELPV(:,PV_i, batt_i) ./ batt_cap_i + 1,'Color',[142 178 68] / 255)
@@ -300,14 +318,14 @@ for year = loadCurve_titles                                   % outer loop going
         %% PART 4
         % PLOTTING
 
-        if makePlot == 1
-%         if false
-%             figure(4);
-%             mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, NPC);
-%             title('Net Present Cost');
-%             set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
-%             xlabel('Battery Bank size [kWh]');
-%             ylabel('PV array size [kW]');
+%         if makePlot == 1
+        if false
+            figure(4);
+            mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, NPC);
+            title('Net Present Cost');
+            set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+            xlabel('Battery Bank size [kWh]');
+            ylabel('PV array size [kW]');
 
             figure(5);
             mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, LLP);
