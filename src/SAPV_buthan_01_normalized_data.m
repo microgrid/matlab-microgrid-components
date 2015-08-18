@@ -219,7 +219,7 @@ for year = loadCurve_titles                                   % outer loop going
                     area_load_needed_from_batt = trapz(time, Load) - free_area;     % by definition this should be positive
 
                     unmet_load = area_load_needed_from_batt - area_to_batt;
-                    unmet_load_perc = unmet_load / trapz(time, Load) * 100          % equal to Loss of Load Probability. But rough estimate since only comparing totals of load and P_pv! And SoC at end of the day influences next day. (Negative means overproduction)
+                    unmet_load_perc = unmet_load / trapz(time, Load) * 100;          % equal to Loss of Load Probability. But rough estimate since only comparing totals of load and P_pv! And SoC at end of the day influences next day. (Negative means overproduction)
 
                     % plot functions for an average day in figure(2)
                     nr_days = length(irr) / 24;                    
@@ -373,91 +373,47 @@ for year = loadCurve_titles                                   % outer loop going
     end
 end
 
-%% make a listplot of results PV vs Batt size with LLP indicated in colours
-
-figure(8)
-
+%% make a plot of resulting systems PV vs Batt size, where the colour of dots gives LLP value and filled or open dots indicate within/without budget
 % fill the circles/dots of the plot if within budget constraint
 % to do this we split the data in two sets, called 'filled' and 'empty'
 budget = 1000000;                                       % budget constraint [€]
-counter_fill = 0;
-counter_empty = 0;
+counter_fill = 1;
+counter_empty = 1;
 for i = 1:n_PV
     for j = 1:n_batt
         this_PV = min_PV + (i - 1) * step_PV;
         this_batt = min_batt + (j - 1) * step_batt;
-        if (NPC(i,j) <= budget) == 1            % fill circle if within budget
-            x_filled(counter_fill) = this_batt;      % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
-            y_filled(counter_fill) = this_PV;        % todo not the safest way to start filling a matrix with unknown dimensions?
+        if (NPC(i,j) <= budget) == 1                            % fill circle if within budget
+            x_filled(counter_fill) = this_batt;                 % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
+            y_filled(counter_fill) = this_PV;                   % todo not the safest/fastest way to start filling a matrix with unknown dimensions? (2 x 3x: for x, y and colours)
+            colour_filled(counter_fill) = round(LLP(i,j),1);    % choose colour of the dot according to value of Loss of Load Probability. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
             counter_fill = counter_fill + 1;
         else
-            x_empty(counter_empty) = this_batt;       % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
+            x_empty(counter_empty) = this_batt;                 % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
             y_empty(counter_empty) = this_PV;
+            colour_empty(counter_empty) = round(LLP(i,j),1);    % choose colour of the dot according to value of Loss of Load Probability. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
             counter_empty = counter_empty + 1;
         end
     end
 end
 
-if (counter_empty + counter_fill == n_PV * n_batt) ~= 1
+if (length(x_filled) + length(x_empty) == n_PV * n_batt) ~= 1
     error('ERROR: The number of datapoints in the two subsets ''filled'' and ''empty'' do not add up to the original dataset.')
 end
-     
-%todo plot parts separately after fixing error.
+
+figure(8);
+scatter(x_filled, y_filled, [], colour_filled, 'filled')
+hold on
+scatter(x_empty, y_empty, [], colour_empty, 'o')
+hold off
+xlabel('Battery bank size [kWh]')
+ylabel('PV array size [kW]')
+title('Filled dots are within budget limit; Colour is LLP')
+% legend('red','','','')    % todo
 
 
 
 
-
-
-% 
-% 
-% 
-% % create a grid with plotted dots on each raster point of considered PV and batt sizes
-% x_val = min_batt : step_batt : max_batt;
-% for i = 1:n_PV
-%     this_PV = min_PV + (i - 1) * step_PV;
-%     
-%     y_val(1:n_batt) = this_PV;                  % create an array of length n_batt with each element equal to this_PV 
-%     % determine colour of grid points depending on LLP value:
-% %     c = linspace(1,10,length(x_val));
-%     colour = LLP(i,1:n_batt);                   % LLP is a (PV x batt)-matrix (i.e. x and y the other way around than in this plot) 
-%     colour_rounded = round(colour,1);           % round to steps of 10% s.t. colour differences in the plot can be seen better
-%     
-%     % fill the circles/dots of the plot if within budget constraint
-%     % to do this we split the data in two sets, called 'filled' and 'empty'
-%     if (NPC(i,1:n_batt) <= budget) == 1         % fill circle if within budget
-% %         x_val_filled(counter) = 
-%         y_val_filled(counter) = this_PV;
-%     else
-%         o
-%     end
-%    
-%     
-%     
-%     
-%     
-%     
-%     
-%     % fill the circles/dots of the plot if within budget constraint
-%     fill_or_not = NPC(i,1:n_batt) <= budget;                % becomes array of 0 and 1
-%     markertype(1:length(fill_or_not))= cellstr('');         % create array of empty strings
-%     for i=1:length(fill_or_not)
-%         if fill_or_not(i) == 1                              
-%             markertype(i) = cellstr('filled');              % fill circles if option is within budget limit          
-%         else
-%             markertype(i) = cellstr('o');
-%         end
-%     end
-%     
-%     scatter(x_val,y_val,[],colour_rounded,'filled')  % use 'o' for empty dots and 'filled' for filled dots
-%     %todo replace 'filled' in line above by markertype but then working
-%     
-%     hold on
-% end
-% hold off
-% xlabel('Battery bank size [kWh]')
-% ylabel('PV array size [kW]')
-% % legend('red','','','')    % todo
 
 
 %%
