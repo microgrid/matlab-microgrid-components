@@ -376,45 +376,46 @@ end
 %% make a plot of resulting systems PV vs Batt size, where the colour of dots gives LLP value and filled or open dots indicate within/without budget
 % fill the circles/dots of the plot if within budget constraint
 % to do this we split the data in two sets, called 'filled' and 'empty'
-budget = 1000000;                                       % budget constraint [€]
-counter_fill = 1;
-counter_empty = 1;
+budget = 800000;                                                % budget constraint [€]
+counter_fill = 0;
+counter_empty = 0;
 for i = 1:n_PV
     for j = 1:n_batt
         this_PV = min_PV + (i - 1) * step_PV;
         this_batt = min_batt + (j - 1) * step_batt;
-        if (NPC(i,j) <= budget) == 1                            % fill circle if within budget
-            x_filled(counter_fill) = this_batt;                 % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
-            y_filled(counter_fill) = this_PV;                   % todo not the safest/fastest way to start filling a matrix with unknown dimensions? (2 x 3x: for x, y and colours)
-            colour_filled(counter_fill) = round(LLP(i,j),1);    % choose colour of the dot according to value of Loss of Load Probability. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
+        if (NPC(i,j) <= budget) == 1                                % fill circle if within budget
             counter_fill = counter_fill + 1;
+            x_filled(counter_fill) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
+            y_filled(counter_fill) = this_PV;                   
+            colour_filled(counter_fill) = round(LLP(i,j),1)*100;    % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
         else
-            x_empty(counter_empty) = this_batt;                 % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
-            y_empty(counter_empty) = this_PV;
-            colour_empty(counter_empty) = round(LLP(i,j),1);    % choose colour of the dot according to value of Loss of Load Probability. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
             counter_empty = counter_empty + 1;
+            x_empty(counter_empty) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
+            y_empty(counter_empty) = this_PV;
+            colour_empty(counter_empty) = round(LLP(i,j),1)*100;    % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
         end
     end
 end
 
-if (length(x_filled) + length(x_empty) == n_PV * n_batt) ~= 1
-    error('ERROR: The number of datapoints in the two subsets ''filled'' and ''empty'' do not add up to the original dataset.')
+if counter_fill + counter_empty ~= n_PV * n_batt
+    error('ERROR: The number of datapoints in the two subsets ''filled'' and ''empty'' does not add up to the original dataset.')
 end
 
 figure(8);
-scatter(x_filled, y_filled, [], colour_filled, 'filled')
-hold on
-scatter(x_empty, y_empty, [], colour_empty, 'o')
+if counter_fill > 0
+    scatter(x_filled, y_filled, [], colour_filled, 'filled')
+    hold on
+end
+if counter_empty > 0
+    scatter(x_empty, y_empty, [], colour_empty, 'o')
+end
 hold off
+bar = colorbar;
+ylabel(bar,'Loss of Load Probability [%]')
 xlabel('Battery bank size [kWh]')
 ylabel('PV array size [kW]')
-title('Filled dots are within budget limit; Colour is LLP')
-% legend('red','','','')    % todo
-
-
-
-
-
+set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+title(['Systems with filled dots are within the budget of €' num2str(budget)])
 
 %%
 toc % End timer
