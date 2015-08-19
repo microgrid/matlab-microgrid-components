@@ -56,10 +56,10 @@ MA_opt_norm_bhut_jun15_20_10 = zeros(length(x_llp), columns); % initialization o
 % Simulation input data
 min_PV = 280;               % Min PV power simulated [kW]
 max_PV = 300;               % Max PV power simulated [kW]
-step_PV = 2;                % PV power simulation step [kW]
+step_PV = 5;                % PV power simulation step [kW]
 min_batt = 50;              % Min Battery capacity simulated [kWh]
 max_batt = 800;             % Max Battery capacity simulated [kWh]
-step_batt = 5;              % Battery capacity simulation step [kWh]
+step_batt = 30;              % Battery capacity simulation step [kWh]
    
 % Computing Number of simulations
 n_PV = ((max_PV - min_PV) / step_PV) + 1;                     % N. of simulated PV power sizes (i.e. N. of iteration on PV)
@@ -207,21 +207,49 @@ for year = loadCurve_titles                                   % outer loop going
                     hold off
                     xlabel('Time over the year [hour]')
                     ylabel('Energy [kWh]')
-                    title('Energy produced and estimated load profile over the year')
-                    legend('Load profile','Energy from PV', 'Energy flow in battery')
+                    title('Energy produced and estimated load profile over the year (2nd steps PV and Batt)')
+                    legend('Load profile','Energy from PV', 'Energy flow from battery')
 
+                    % integration of figure(1) to find rough LLP estimate
+                    free = min(Load, P_pv);                                         % energy for free, i.e. directly from PV without battery intervenience, is the area under this graph. 
+                                                                                    % N.B. Assumption: both Load and P_pv are positive functions
+                    time = 1:length(irr);
+                    free_area = trapz(time, free);                                  % discrete integration using trapeziums. Might not be the best solution for non-linear data. See http://se.mathworks.com/help/matlab/math/integration-of-numeric-data.html
+                    area_to_batt = trapz(time, P_pv) - free_area;                   % by definition this should be positive
+                    area_load_needed_from_batt = trapz(time, Load) - free_area;     % by definition this should be positive
+
+                    unmet_load = area_load_needed_from_batt - area_to_batt;
+                    unmet_load_perc = unmet_load / trapz(time, Load) * 100;          % equal to Loss of Load Probability. But rough estimate since only comparing totals of load and P_pv! And SoC at end of the day influences next day. (Negative means overproduction)
+
+                    % plot functions for an average day in figure(2)
+                    nr_days = length(irr) / 24;                    
+                    Load_av = zeros(1,24);                              % vector for average daily Load
+                    P_pv_av = zeros(1,24);                              % vector for average daily P_pv
+                    batt_balance_pos_av = zeros(1,24);                  % vector for average daily batt_balance_pos. This is misleading since it is influenced by state of charge of previous days.
+                    for hour = 1:24                                     % iterate over all times 1:00, 2:00 etc.
+                    hours_i = hour : 24 : (nr_days - 1) * 24 + hour;    % range to pick the i-th hour of each day throughout the yearly data, i.e. 1:00 of 1 January, 1:00 of 2 January etc.
+                        for k = hours_i
+                            Load_av(hour) = Load_av(hour) + Load(k);
+                            P_pv_av(hour) = P_pv_av(hour) + P_pv(k);
+                            batt_balance_pos_av(hour) = batt_balance_pos_av(hour) + batt_balance_pos(k);
+                        end
+                        Load_av(hour) = Load_av(hour) / nr_days;
+                        P_pv_av(hour) = P_pv_av(hour) / nr_days;
+                        batt_balance_pos_av(hour) = batt_balance_pos_av(hour) / nr_days;
+                    end
+                    
                     figure(2)
-                    plot(Load(1:24),'Color',[72 122 255] / 255)
+                    plot(Load_av,'Color',[72 122 255] / 255)
                     hold on
-                    plot(P_pv(1:24),'Color',[255 192 33] / 255)
+                    plot(P_pv_av,'Color',[255 192 33] / 255)
                     hold on
-                    plot(batt_balance_pos(1:24),'Color',[178 147 68] / 255)
+                    plot(batt_balance_pos_av,'Color',[178 147 68] / 255)
                     hold off
                     xlabel('Time over the day [hour]')
                     ylabel('Energy [kWh]')
-                    title('Energy produced and estimated load profile of 1 January')
+                    title('Energy produced and estimated load profile of an average day (2nd steps PV and Batt)')
                     legend('Load profile','Energy from PV', 'Energy flow in battery')
-                    
+                                        
                     figure(3)    
                     plot(ELPV(:,PV_i, batt_i) ./ batt_cap_i + 1,'Color',[142 178 68] / 255)
                     hold on
@@ -231,7 +259,7 @@ for year = loadCurve_titles                                   % outer loop going
                     hold off
                     xlabel('Time over the year [hour]')
                     ylabel('Power refered to State of Charge of the battery')
-                    legend('Overproduction, not utilized', 'Loss of power', 'State of charge')                    
+                    legend('Overproduction, not utilized', 'Loss of power', 'State of charge')
                 end
             end
 
@@ -300,14 +328,14 @@ for year = loadCurve_titles                                   % outer loop going
         %% PART 4
         % PLOTTING
 
-        if makePlot == 1
-%         if false
-%             figure(4);
-%             mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, NPC);
-%             title('Net Present Cost');
-%             set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
-%             xlabel('Battery Bank size [kWh]');
-%             ylabel('PV array size [kW]');
+%         if makePlot == 1
+        if false
+            figure(4);
+            mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, NPC);
+            title('Net Present Cost');
+            set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+            xlabel('Battery Bank size [kWh]');
+            ylabel('PV array size [kW]');
 
             figure(5);
             mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, LLP);
@@ -345,5 +373,50 @@ for year = loadCurve_titles                                   % outer loop going
     end
 end
 
+%% make a plot of resulting systems PV vs Batt size, where the colour of dots gives LLP value and filled or open dots indicate within/without budget
+% fill the circles/dots of the plot if within budget constraint
+% to do this we split the data in two sets, called 'filled' and 'empty'
+budget = 800000;                                                % budget constraint [€]
+counter_fill = 0;
+counter_empty = 0;
+for i = 1:n_PV
+    for j = 1:n_batt
+        this_PV = min_PV + (i - 1) * step_PV;
+        this_batt = min_batt + (j - 1) * step_batt;
+        if (NPC(i,j) <= budget) == 1                                % fill circle if within budget
+            counter_fill = counter_fill + 1;
+            x_filled(counter_fill) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
+            y_filled(counter_fill) = this_PV;                   
+            colour_filled(counter_fill) = round(LLP(i,j),1)*100;    % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
+        else
+            counter_empty = counter_empty + 1;
+            x_empty(counter_empty) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
+            y_empty(counter_empty) = this_PV;
+            colour_empty(counter_empty) = round(LLP(i,j),1)*100;    % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
+        end
+    end
+end
+
+if counter_fill + counter_empty ~= n_PV * n_batt
+    error('ERROR: The number of datapoints in the two subsets ''filled'' and ''empty'' does not add up to the original dataset.')
+end
+
+figure(8);
+if counter_fill > 0
+    scatter(x_filled, y_filled, [], colour_filled, 'filled')
+    hold on
+end
+if counter_empty > 0
+    scatter(x_empty, y_empty, [], colour_empty, 'o')
+end
+hold off
+bar = colorbar;
+ylabel(bar,'Loss of Load Probability [%]')
+xlabel('Battery bank size [kWh]')
+ylabel('PV array size [kW]')
+set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+title(['Systems with filled dots are within the budget of €' num2str(budget)])
+
+%%
 toc % End timer
 save('MA_opt_norm_bhut_jun15_20_10.mat','MA_opt_norm_bhut_jun15_20_10')
