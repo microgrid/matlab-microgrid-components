@@ -4,6 +4,8 @@
 % This script is a combination of the script SAPV_buthan_01[...] from Stefano Mandelli
 % and 'fullYear_script' from Hakon Duus. 
 
+%% test this is the branch find_opt_sizes!
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTRODUCTION
 % Input Notes
