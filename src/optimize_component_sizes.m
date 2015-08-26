@@ -2,7 +2,7 @@
 % It is very simplified, and is to give a fast simulation of the situation
 % over the year, based on simple input-data.
 % This script is a combination of the script SAPV_buthan_01[...] from Stefano Mandelli
-% and 'fullYear_script' from Hkon Duus. 
+% and 'fullYear_script' from Hakon Duus. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% INTRODUCTION
@@ -74,7 +74,7 @@ for year = loadCurve_titles                                   % outer loop going
     load_curves_counter = load_curves_counter + 1;
     
     % importing 3 data files that describe one year with hourly resolution i.e. 24 x 365 = (8760)-row vectors.                                                
-    path_to_dataBase = 'C:\Users\MicrogridProject\Documents\MATLAB\Jeemijn\matlab-microgrid-components\dataBase\';
+    path_to_dataBase = '/Users/jeemijn/Desktop/NTNU_microgrids/matlab/matlab-microgrid-components/dataBase/';
     irr = importdata([path_to_dataBase, 'solar_data_Phuntsholing_baseline.mat']);                      % Use \ for Windows and / for Mac and Linux
     filename = ([path_to_dataBase, 'LoadCurve_normalized_single_3percent_',num2str(year),'.mat']);   % Average hourly global radiation (beam + diffuse) incident on the PV array [kW/m2]. Due to the simulation step [1h], this is also [kWh/m2]
     Load = importdata(filename);                                                            % Import Load curve 
@@ -387,12 +387,12 @@ for i = 1:n_PV
             counter_fill = counter_fill + 1;
             x_filled(counter_fill) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
             y_filled(counter_fill) = this_PV;                   
-            colour_filled(counter_fill) = round(LLP(i,j),1)*100;    % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
+            colour_filled(counter_fill) = roundn(LLP(i,j),1)*100;   % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
         else
             counter_empty = counter_empty + 1;
             x_empty(counter_empty) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
             y_empty(counter_empty) = this_PV;
-            colour_empty(counter_empty) = round(LLP(i,j),1)*100;    % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
+            colour_empty(counter_empty) = roundn(LLP(i,j),1)*100;   % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
         end
     end
 end
@@ -403,7 +403,7 @@ end
 
 figure(8);
 if counter_fill > 0
-    scatter(x_filled, y_filled, [], colour_filled, 'filled')
+    scatter(x_filled, y_filled, [], colour_filled, 'filled')            %todo this only gives different colours in Matlab 2014; not in 2012. Use gscatter() and groups
     hold on
 end
 if counter_empty > 0
