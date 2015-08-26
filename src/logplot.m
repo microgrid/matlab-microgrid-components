@@ -394,12 +394,14 @@ for i = 1:n_PV
             counter_fill = counter_fill + 1;
             x_filled(counter_fill) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
             y_filled(counter_fill) = this_PV;                   
-            colour_filled(counter_fill) = roundn(LLP(i,j),1)*100;   % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
+            colour_filled(counter_fill) = roundn(LLP(i,j)*100,1);   % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
+%             colour_filled(counter_fill) = roundn(LLP(i,j),1)*100;   % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
         else
             counter_empty = counter_empty + 1;
             x_empty(counter_empty) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
             y_empty(counter_empty) = this_PV;
-            colour_empty(counter_empty) = roundn(LLP(i,j),1)*100;   % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
+            colour_empty(counter_empty) = roundn(LLP(i,j)*100,1);   % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
+%             colour_empty(counter_empty) = roundn(LLP(i,j),1)*100;   % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
         end
     end
 end
@@ -411,7 +413,7 @@ end
 
 figure(8);
 if counter_fill > 0
-    scatter(x_filled, y_filled, [], colour_filled, 'filled')        %todo this only gives different colours in Matlab 2014; not in 2012. Use gscatter() and groups
+    scatter(x_filled, y_filled, [], colour_filled, 'filled')        
     hold on
 end
 if counter_empty > 0
