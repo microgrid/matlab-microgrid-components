@@ -54,16 +54,24 @@ columns = length(loadCurve_titles) * 6;                       % since we will be
 MA_opt_norm_bhut_jun15_20_10 = zeros(length(x_llp), columns); % initialization of the optimal-solution matrix
 
 % Simulation input data
-min_PV = 280;               % Min PV power simulated [kW]
-max_PV = 300;               % Max PV power simulated [kW]
-step_PV = 5;                % PV power simulation step [kW]
-min_batt = 50;              % Min Battery capacity simulated [kWh]
-max_batt = 800;             % Max Battery capacity simulated [kWh]
-step_batt = 30;              % Battery capacity simulation step [kWh]
-   
+min_PV = 0;               % Min PV power simulated [kW]
+max_PV = 600;               % Max PV power simulated [kW]
+step_PV = 10;                % PV power simulation step [kW]
+min_batt = 0;              % Min Battery capacity simulated [kWh]
+max_batt = 1500;             % Max Battery capacity simulated [kWh]
+step_batt = 20;              % Battery capacity simulation step [kWh]
+
 % Computing Number of simulations
 n_PV = ((max_PV - min_PV) / step_PV) + 1;                     % N. of simulated PV power sizes (i.e. N. of iteration on PV)
 n_batt = ((max_batt - min_batt) / step_batt) + 1;             % N. of simulated Battery capacity (i.e. N. of iteration on Batt)
+
+if mod(max_PV - min_PV,step_PV) ~= 0 
+    error('ERROR: The range of PV sizes is not divisible by the step size step_PV.')
+end
+
+if mod(max_batt - min_batt,step_batt) ~= 0 
+    error('ERROR: The range of battery sizes is not divisible by the step size step_batt.')
+end
 
 load_curves_counter = 0;                                      % counter for the number of load curves
     
@@ -75,10 +83,10 @@ for year = loadCurve_titles                                   % outer loop going
     
     % importing 3 data files that describe one year with hourly resolution i.e. 24 x 365 = (8760)-row vectors.                                                
     path_to_dataBase = '/Users/jeemijn/Desktop/NTNU_microgrids/matlab/matlab-microgrid-components/dataBase/';
-    irr = importdata([path_to_dataBase, 'solar_data_Phuntsholing_baseline.mat']);                      % Use \ for Windows and / for Mac and Linux
-    filename = ([path_to_dataBase, 'LoadCurve_normalized_single_3percent_',num2str(year),'.mat']);   % Average hourly global radiation (beam + diffuse) incident on the PV array [kW/m2]. Due to the simulation step [1h], this is also [kWh/m2]
-    Load = importdata(filename);                                                            % Import Load curve 
-    T_amb = importdata([path_to_dataBase, 'surface_temp_phuent_2004_hour.mat']);                       % Import ambient temperature data
+    irr = importdata([path_to_dataBase, 'solar_data_Phuntsholing_baseline.mat']);                       % Use \ for Windows and / for Mac and Linux
+    filename = ([path_to_dataBase, 'LoadCurve_normalized_single_3percent_',num2str(year),'.mat']);      % Average hourly global radiation (beam + diffuse) incident on the PV array [kW/m2]. Due to the simulation step [1h], this is also [kWh/m2]
+    Load = importdata(filename);                                                                        % Import Load curve 
+    T_amb = importdata([path_to_dataBase, 'surface_temp_phuent_2004_hour.mat']);                        % Import ambient temperature data
          
     % Declaration of simulation variables
     EPV = zeros(n_PV, n_batt);              % Energy PV (EPV): yearly energy produced by the PV array [kWh]
@@ -88,8 +96,8 @@ for year = loadCurve_titles                                   % outer loop going
     batt_balance = zeros(1,length(irr));    % Powerflow in battery. Positive flow out from battery, negative flow is charging
     num_batt = zeros(n_PV, n_batt);         % number of batteries employed due to lifetime limit
     SoC = zeros(1,size(Load,2));            % to save step-by-step SoC (State of Charge) of the battery
-    IC = zeros(n_PV, n_batt);               % Investment Cost (IC) []
-    YC = zeros(n_PV, n_batt);               % Operations & Maintenance & replacement; present cost []
+    IC = zeros(n_PV, n_batt);               % Investment Cost (IC) [EUR]
+    YC = zeros(n_PV, n_batt);               % Operations & Maintenance & replacement; present cost [EUR]
 
     %% System components 
     % System details and input variables are as follows
@@ -205,6 +213,7 @@ for year = loadCurve_titles                                   % outer loop going
                     hold on
                     plot(batt_balance_pos,'Color',[178 147 68] / 255)
                     hold off
+                    set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
                     xlabel('Time over the year [hour]')
                     ylabel('Energy [kWh]')
                     title('Energy produced and estimated load profile over the year (2nd steps PV and Batt)')
@@ -245,6 +254,7 @@ for year = loadCurve_titles                                   % outer loop going
                     hold on
                     plot(batt_balance_pos_av,'Color',[178 147 68] / 255)
                     hold off
+                    set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
                     xlabel('Time over the day [hour]')
                     ylabel('Energy [kWh]')
                     title('Energy produced and estimated load profile of an average day (2nd steps PV and Batt)')
@@ -257,6 +267,7 @@ for year = loadCurve_titles                                   % outer loop going
                     hold on
                     plot(SoC,'Color',[64 127 255] / 255)
                     hold off
+                    set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
                     xlabel('Time over the year [hour]')
                     ylabel('Power refered to State of Charge of the battery')
                     legend('Overproduction, not utilized', 'Loss of power', 'State of charge')
@@ -373,7 +384,9 @@ for year = loadCurve_titles                                   % outer loop going
     end
 end
 
-%% make a plot of resulting systems PV vs Batt size, where the colour of dots gives LLP value and filled or open dots indicate within/without budget
+%% PART 6 
+% make a plot of resulting systems PV vs Batt size, where the colour of dots gives LLP value and filled or open dots indicate within/without budget
+
 % fill the circles/dots of the plot if within budget constraint
 % to do this we split the data in two sets, called 'filled' and 'empty'
 budget = 800000;                                                % budget constraint [€]
@@ -387,12 +400,14 @@ for i = 1:n_PV
             counter_fill = counter_fill + 1;
             x_filled(counter_fill) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
             y_filled(counter_fill) = this_PV;                   
-            colour_filled(counter_fill) = roundn(LLP(i,j),1)*100;   % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
+%             colour_filled(counter_fill) = LLP(i,j)*100;   % choose colour of the dot according to value of Loss of Load Probability in [%]. 
+            colour_filled(counter_fill) = roundn(LLP(i,j)*100,1);   % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
         else
             counter_empty = counter_empty + 1;
             x_empty(counter_empty) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
             y_empty(counter_empty) = this_PV;
-            colour_empty(counter_empty) = roundn(LLP(i,j),1)*100;   % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
+%             colour_empty(counter_empty) = LLP(i,j)*100;   % choose colour of the dot according to value of Loss of Load Probability in [%]. 
+            colour_empty(counter_empty) = roundn(LLP(i,j)*100,1);   % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
         end
     end
 end
@@ -403,7 +418,7 @@ end
 
 figure(8);
 if counter_fill > 0
-    scatter(x_filled, y_filled, [], colour_filled, 'filled')            %todo this only gives different colours in Matlab 2014; not in 2012. Use gscatter() and groups
+    scatter(x_filled, y_filled, [], colour_filled, 'filled')            
     hold on
 end
 if counter_empty > 0
@@ -412,10 +427,11 @@ end
 hold off
 bar = colorbar;
 ylabel(bar,'Loss of Load Probability [%]')
+set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
 xlabel('Battery bank size [kWh]')
 ylabel('PV array size [kW]')
 set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
-title(['Systems with filled dots are within the budget of €' num2str(budget)])
+title(['Systems with filled dots are within the budget of E' num2str(budget)])
 
 %%
 toc % End timer

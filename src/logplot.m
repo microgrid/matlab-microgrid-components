@@ -427,7 +427,7 @@ ylabel('PV array size [kW]')
 % comment = 'This figure aims to plot 4 parameters in 2D: battery size, PV size, Loss of Load Probability (LLP) and cost. Each dot/circle in the figure represents a specific system given by the battery size (x-axis) and PV size (y-axis). The LLP of each system/dot is indicated by the color scale in [%]. The filling of the dots indicates whether the cost of that system is within or without the given budget limit: filled dot systems are within the budget limit, while open dots are too expensive. Looking at the budget limit line (border between open and filled circles) one can find what the lowest possible LLP for this budget is, and read off the corresponding system sizes.';
 % annotation('textbox', [0, 1, 1, 1], 'String', 'Hei')              % todo place the position of the text inside the plot
 set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
-title(['Systems with filled dots are within the budget of ?' num2str(budget)])
+title(['Systems with filled dots are within the budget of E' num2str(budget)])
 
 %%
 toc % End timer
