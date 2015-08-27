@@ -1,3 +1,6 @@
+# Ignore generated data
+results.mat
+
 # Created by https://www.gitignore.io
 
 ### Matlab ###
