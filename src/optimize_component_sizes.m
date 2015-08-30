@@ -378,101 +378,52 @@ for year = loadCurve_titles                                   % outer loop going
 end
 
 %% PART 6 
-% make a plot of resulting systems PV vs Batt size, where the colour of dots gives LLP value and filled or open dots indicate within/without budget
+% make a plot of resulting systems PV vs Batt size, where the color of
+% dots gives LLP value and isopleths of budget are added in black
 
-% fill the circles/dots of the plot if within budget constraint
-% to do this we split the data in two sets, called 'filled' and 'empty'
-budget = 800000;                                                % budget constraint [€]
-counter_fill = 0;
-counter_empty = 0;
+% plotting dots for each system (x,y)=(PV, Batt) with color corresponding to
+% LLP
+dots_counter = 0;
 for i = 1:n_PV
     for j = 1:n_batt
+        dots_counter = dots_counter + 1;
         this_PV = min_PV + (i - 1) * step_PV;
         this_batt = min_batt + (j - 1) * step_batt;
-        if (NPC(i,j) <= budget) == 1                                % fill circle if within budget
-            counter_fill = counter_fill + 1;
-            x_filled(counter_fill) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
-            y_filled(counter_fill) = this_PV;                   
-%             colour_filled(counter_fill) = LLP(i,j)*100;   % choose colour of the dot according to value of Loss of Load Probability in [%]. 
-            colour_filled(counter_fill) = roundn(LLP(i,j)*100,1);   % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
-        else
-            counter_empty = counter_empty + 1;
-            x_empty(counter_empty) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
-            y_empty(counter_empty) = this_PV;
-%             colour_empty(counter_empty) = LLP(i,j)*100;   % choose colour of the dot according to value of Loss of Load Probability in [%]. 
-            colour_empty(counter_empty) = roundn(LLP(i,j)*100,1);   % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
-        end
+        
+        x_values(dots_counter) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
+        y_values(dots_counter) = this_PV;                   
+%         colors(dots_counter) = LLP(i,j)*100;                    % choose colour of the dot according to value of Loss of Load Probability in [%]. 
+        colors(dots_counter) = roundn(LLP(i,j)*100,1);          % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
     end
 end
 
-if counter_fill + counter_empty ~= n_PV * n_batt
-    error('ERROR: The number of datapoints in the two subsets ''filled'' and ''empty'' does not add up to the original dataset.')
-end
-
 figure(8);
-if counter_fill > 0
-    scatter(x_filled, y_filled, [], colour_filled, 'filled')            
+if dots_counter > 0
+    scatter(x_values, y_values, [], colors, 'filled')            
     hold on
 end
-if counter_empty > 0
-    scatter(x_empty, y_empty, [], colour_empty, 'o')
-end
-hold off
-bar = colorbar;
-ylabel(bar,'Loss of Load Probability [%]')
-set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
-xlabel('Battery bank size [kWh]')
-ylabel('PV array size [kW]')
-set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
-title(['Systems with filled dots are within the budget of E' num2str(budget)])
 
-
-
-
-
-
-%% start over: plotting isopleth lines of LLP and budget (instead of coloring dots)
-% rounding in order to compare up to x digits with certain values for isopleths.
-LLP_integer = round(LLP*100);
+% rounding costs in order to compare up to x digits with certain values of isopleths
 NPC_rounded = roundn(NPC,4);                            % round the cost to 10^4 EUR
 min = roundn(min(NPC(:)),4);                            % lowest cost that occurs rounded to 10^4 EUR
 max = roundn(max(NPC(:)),4);                            % highest cost that occurs rounded to 10^4 EUR
 budget_range = linspace(min, max, 10);
 
-figure(9);
-ColorSet = varycolor(20);                              % following the coloring as in http://blogs.mathworks.com/pick/2008/08/15/colors-for-your-multi-line-plots/ 
-set(gca, 'ColorOrder', ColorSet);
-hold all
-
-% plotting isopleths of equal Loss of Load Probability (LLP)
-for n_LLP = 0:5:100                                     % todo make this corresponding to other ranges of llp and/or llp_var above?            
-    [LLP_x, LLP_y] = find(LLP_integer == n_LLP);        % find all systems (x,y) = (PV_i, batt_i) for this LLP value
-    
-    LLP_x = min_PV + (LLP_x - 1) * step_PV;             % convert to correct values of PV i.e. in [kW] instead of their order 1, 2, 3, ...
-    LLP_y = min_batt + (LLP_y - 1) * step_batt;
-        
-    plot(LLP_y, LLP_x,'-o')
-
-    % todo save the plotted data points for later; not working yet
-    % ['LLP_', num2str(n_LLP), '_x'] = LLP_x;
-    % ['LLP_', num2str(n_LLP), '_y'] = LLP_y;
-end
-
-% plotting isopleths of equal cost (NPC)
+% plotting isopleths of equal cost (NPC) in black on top
 for cost = budget_range
     [cost_x, cost_y] = find(NPC_rounded == cost);       % find all systems (x,y) = (PV_i, batt_i) for this cost
     cost_x = min_PV + (cost_x - 1) * step_PV;           % convert to correct values of PV i.e. in [kW] instead of their order 1, 2, 3, ...
     cost_y = min_batt + (cost_y - 1) * step_batt;
-    plot(cost_y, cost_x,'k:o')
+    plot(cost_y, cost_x,'k-o','linewidth',1.1)
 end
+
 hold off
-legend off
-set(gcf, 'Colormap', ColorSet);
 bar = colorbar;
 ylabel(bar,'Loss of Load Probability [%]')
 set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
 xlabel('Battery bank size [kWh]')
 ylabel('PV array size [kW]')
+set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
 title('Systems')
 
 %%
