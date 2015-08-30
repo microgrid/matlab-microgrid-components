@@ -53,12 +53,12 @@ columns = length(loadCurve_titles) * 6;                       % since we will be
 MA_opt_norm_bhut_jun15_20_10 = zeros(length(x_llp), columns); % initialization of the optimal-solution matrix
 
 % Simulation input data
-min_PV = 280;               % Min PV power simulated [kW]
+min_PV = 0;               % Min PV power simulated [kW]
 max_PV = 300;               % Max PV power simulated [kW]
-step_PV = 10;                % PV power simulation step [kW]
-min_batt = 0;              % Min Battery capacity simulated [kWh]
+step_PV = 10;               % PV power simulation step [kW]
+min_batt = 0;               % Min Battery capacity simulated [kWh]
 max_batt = 800;             % Max Battery capacity simulated [kWh]
-step_batt = 20;              % Battery capacity simulation step [kWh]
+step_batt = 20;             % Battery capacity simulation step [kWh]
 
 % Computing Number of simulations
 n_PV = ((max_PV - min_PV) / step_PV) + 1;                     % N. of simulated PV power sizes (i.e. N. of iteration on PV)
@@ -425,6 +425,55 @@ xlabel('Battery bank size [kWh]')
 ylabel('PV array size [kW]')
 set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
 title(['Systems with filled dots are within the budget of E' num2str(budget)])
+
+
+
+
+
+
+%% start over: plotting isopleth lines of LLP and budget (instead of coloring dots)
+% rounding in order to compare up to x digits with certain values for isopleths.
+LLP_integer = round(LLP*100);
+NPC_rounded = roundn(NPC,4);                            % round the cost to 10^4 EUR
+min = roundn(min(NPC(:)),4);                            % lowest cost that occurs rounded to 10^4 EUR
+max = roundn(max(NPC(:)),4);                            % highest cost that occurs rounded to 10^4 EUR
+budget_range = linspace(min, max, 10);
+
+figure(9);
+ColorSet = varycolor(20);                              % following the coloring as in http://blogs.mathworks.com/pick/2008/08/15/colors-for-your-multi-line-plots/ 
+set(gca, 'ColorOrder', ColorSet);
+hold all
+
+% plotting isopleths of equal Loss of Load Probability (LLP)
+for n_LLP = 0:5:100                                     % todo make this corresponding to other ranges of llp and/or llp_var above?            
+    [LLP_x, LLP_y] = find(LLP_integer == n_LLP);        % find all systems (x,y) = (PV_i, batt_i) for this LLP value
+    
+    LLP_x = min_PV + (LLP_x - 1) * step_PV;             % convert to correct values of PV i.e. in [kW] instead of their order 1, 2, 3, ...
+    LLP_y = min_batt + (LLP_y - 1) * step_batt;
+        
+    plot(LLP_y, LLP_x,'-o')
+
+    % todo save the plotted data points for later; not working yet
+    % ['LLP_', num2str(n_LLP), '_x'] = LLP_x;
+    % ['LLP_', num2str(n_LLP), '_y'] = LLP_y;
+end
+
+% plotting isopleths of equal cost (NPC)
+for cost = budget_range
+    [cost_x, cost_y] = find(NPC_rounded == cost);       % find all systems (x,y) = (PV_i, batt_i) for this cost
+    cost_x = min_PV + (cost_x - 1) * step_PV;           % convert to correct values of PV i.e. in [kW] instead of their order 1, 2, 3, ...
+    cost_y = min_batt + (cost_y - 1) * step_batt;
+    plot(cost_y, cost_x,'k:o')
+end
+hold off
+legend off
+set(gcf, 'Colormap', ColorSet);
+bar = colorbar;
+ylabel(bar,'Loss of Load Probability [%]')
+set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+xlabel('Battery bank size [kWh]')
+ylabel('PV array size [kW]')
+title('Systems')
 
 %%
 toc % End timer
