@@ -44,12 +44,11 @@
 
 clear all
 close all
-beep off
 tic                                                           % Start timer for the script
 
 x_llp = linspace(1,20,20);                                    % range of LLP_target (Loss of Load Probability) in [%]
 loadCurve_titles = [100];                                     % array with names (i.e. name them by year) of all load curves to be imported. In the case '[100]' there is just one called '100'. 
-makePlot = 1;                                                 % set to 1 if plots are desired
+makePlot = 0;                                                 % set to 1 if plots are desired
 columns = length(loadCurve_titles) * 6;                       % since we will be interested in 6 variables at the end
 MA_opt_norm_bhut_jun15_20_10 = zeros(length(x_llp), columns); % initialization of the optimal-solution matrix
 
@@ -57,7 +56,7 @@ MA_opt_norm_bhut_jun15_20_10 = zeros(length(x_llp), columns); % initialization o
 min_PV = 280;               % Min PV power simulated [kW]
 max_PV = 300;               % Max PV power simulated [kW]
 step_PV = 10;                % PV power simulation step [kW]
-min_batt = 60;              % Min Battery capacity simulated [kWh]
+min_batt = 0;              % Min Battery capacity simulated [kWh]
 max_batt = 800;             % Max Battery capacity simulated [kWh]
 step_batt = 20;              % Battery capacity simulation step [kWh]
 
@@ -180,6 +179,9 @@ for year = loadCurve_titles                                   % outer loop going
                         ELPV(t,PV_i, batt_i) = ELPV(t,PV_i, batt_i) + (abs(batt_balance(t))- Pow_max);
                     end
                     SoC(t+1) = SoC(t) + abs(flow_from_batt) / batt_cap_i;
+                    if batt_cap_i == 0
+                        SoC(t+1) = SoC(1);                              % to undo division by zero
+                    end
                     if SoC(t+1) > 1
                         ELPV(t,PV_i, batt_i) = ELPV(t,PV_i, batt_i) + (SoC(t+1) - 1) * batt_cap_i / eff_char;
                         SoC(t+1) = 1;
@@ -192,6 +194,9 @@ for year = loadCurve_titles                                   % outer loop going
                         LL(t,PV_i, batt_i) = LL(t,PV_i, batt_i) + (batt_balance(t) - Pow_max) * eff_inv;    % adding the part to LL (Loss of Load) due to exceeding the battery discharging speed
                     end
                     SoC(t+1) = SoC(t) - flow_from_batt / batt_cap_i;
+                    if batt_cap_i == 0
+                        SoC(t+1) = SoC(1);                              % to undo division by zero
+                    end
                     if SoC(t+1) < SoC_min
                         LL(t,PV_i, batt_i) = LL(t,PV_i, batt_i) + (SoC_min - SoC(t+1)) * batt_cap_i * eff_disch * eff_inv; % adding the part to LL (Loss of Load) due to not enough energy in battery (using that battery must stay at SoC_min)
                         SoC(t+1) = SoC_min;
@@ -249,7 +254,7 @@ for year = loadCurve_titles                                   % outer loop going
                     legend('Load profile','Energy from PV', 'Energy flow in battery')
                                         
                     figure(3)    
-                    plot(ELPV(:,PV_i, batt_i) ./ batt_cap_i + 1,'Color',[142 178 68] / 255)
+                    plot(ELPV(:,PV_i, batt_i) ./ batt_cap_i + 1,'Color',[142 178 68] / 255)         % not nice for batt_cap_i == 0
                     hold on
                     plot(LL(:,PV_i, batt_i) ./ batt_cap_i + SoC_min,'Color',[255 91 60] / 255)
                     hold on
@@ -325,41 +330,6 @@ for year = loadCurve_titles                                   % outer loop going
 
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% PART 4
-        % PLOTTING
-
-%         if makePlot == 1
-        if false
-            figure(4);
-            mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, NPC);
-            title('Net Present Cost');
-            set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
-            xlabel('Battery Bank size [kWh]');
-            ylabel('PV array size [kW]');
-
-            figure(5);
-            mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, LLP);
-            title('Loss of Load Probability');
-            set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
-            xlabel('Battery Bank size [kWh]');
-            ylabel('PV array size [kW]');
-
-            figure(6);
-            mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, LCoE);
-            title('Levelized Cost of Energy');
-            set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
-            xlabel('Battery Bank size [kWh]');
-            ylabel('PV array size [kW]');
-
-            figure(7);
-            mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, num_batt);
-            title('Num. of battery employed due to lifetime limit');
-            set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
-            xlabel('Battery Bank size [kWh]');
-            ylabel('PV array size [kW]');
-        end
-
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        %% PART 5
         % Making optimal-solution matrix
 
         if isempty(NPC_opt) == 1
@@ -368,7 +338,42 @@ for year = loadCurve_titles                                   % outer loop going
 
         opt_sol = [LLP_opt NPC_opt kW_opt kWh_opt LCoE_opt IC_opt];
 
-        MA_opt_norm_bhut_jun15_20_10(a_x, ((6 * load_curves_counter - 5) : 6 * load_curves_counter)) = opt_sol;     % the : operator sets the range of y-coordinates that the array opt_sol will take in the matrix MA_opt_norm_bhut_jun15_20_10
+        MA_opt_norm_bhut_jun15_20_10(a_x, ((6 * load_curves_counter - 5) : 6 * load_curves_counter)) = opt_sol;     % the : operator sets the range of y-coordinates that the array opt_sol will take in the matrix MA_opt_norm_bhut_jun15_20_10        
+    end
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% PART 5
+    % PLOTTING (for last value of LLP in a_x)
+
+    if makePlot == 1
+%         if false
+        figure(4);
+        mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, NPC);
+        title('Net Present Cost');
+        set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+        xlabel('Battery Bank size [kWh]');
+        ylabel('PV array size [kW]');
+
+        figure(5);
+        mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, LLP);
+        title('Loss of Load Probability');
+        set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+        xlabel('Battery Bank size [kWh]');
+        ylabel('PV array size [kW]');
+
+        figure(6);
+        mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, LCoE);
+        title('Levelized Cost of Energy');
+        set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+        xlabel('Battery Bank size [kWh]');
+        ylabel('PV array size [kW]');
+
+        figure(7);
+        mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, num_batt);
+        title('Num. of battery employed due to lifetime limit');
+        set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+        xlabel('Battery Bank size [kWh]');
+        ylabel('PV array size [kW]');
     end
 end
 
