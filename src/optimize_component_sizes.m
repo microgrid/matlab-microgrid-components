@@ -54,10 +54,10 @@ MA_opt_norm_bhut_jun15_20_10 = zeros(length(x_llp), columns); % initialization o
 
 % Simulation input data
 min_PV = 0;               % Min PV power simulated [kW]
-max_PV = 300;               % Max PV power simulated [kW]
+max_PV = 600;               % Max PV power simulated [kW]
 step_PV = 10;               % PV power simulation step [kW]
 min_batt = 0;               % Min Battery capacity simulated [kWh]
-max_batt = 800;             % Max Battery capacity simulated [kWh]
+max_batt = 1000;             % Max Battery capacity simulated [kWh]
 step_batt = 20;             % Battery capacity simulation step [kWh]
 
 % Computing Number of simulations
@@ -383,6 +383,11 @@ end
 
 % plotting dots for each system (x,y)=(PV, Batt) with color corresponding to
 % LLP
+nr_of_systems = n_PV * n_batt;
+x_values = zeros(1,nr_of_systems);
+y_values = zeros(1,nr_of_systems);
+colors = zeros(1,nr_of_systems);
+
 dots_counter = 0;
 for i = 1:n_PV
     for j = 1:n_batt
@@ -424,7 +429,7 @@ set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
 xlabel('Battery bank size [kWh]')
 ylabel('PV array size [kW]')
 set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
-title('Systems')
+title('The LLP of each (batt, PV) system in colour. Isopleths of equal cost (NPC) are in black.')
 
 %%
 toc % End timer
