@@ -311,7 +311,7 @@ for year = loadCurve_titles                                   % outer loop going
         %% PART 3
         % LOOKING FOR THE OPTIMUM PLANT AS REGARDS THE TARGETED LLP
 
-        LLP_var = 0.3;                                                                              % accepted error band near targeted LLP value
+        LLP_var = 0.3;                                                                            % accepted error band near targeted LLP value. Note that values are not in % but in [0,1]. So LLP_var = 0.005 means that we look for an LLP of 14% within 0.135 to 0.145 (i.e. 13.5% to 14.5%)
         [posPV, posBatt] = find( (LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var) );     % find possible systems with targeted LLP (within error band). Recall that LLP is a (n_PV x n_batt)-matrix. Example of this syntax: http://se.mathworks.com/help/matlab/ref/find.html#budq84b-1
         NPC_opt = min( diag(NPC(posPV, posBatt)) );                                                 % finds the system within the targeted set that has the minimal NPC
         
@@ -327,6 +327,34 @@ for year = loadCurve_titles                                   % outer loop going
         LLP_opt = LLP(PV_opt, Batt_opt);
         LCoE_opt = LCoE(PV_opt, Batt_opt);
         IC_opt = IC(PV_opt, Batt_opt);
+        
+        
+        
+        % check that the optimal values are within the search range of PV/battery:
+        
+        this_LLP = find((LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var));       % gives index nrs of LLP matrix that correspond to this LLP isopleth
+        this_LLP_costs = NPC(this_LLP);                                                     % gives cost (NPC) along this LLP isopleth
+        
+        [ymax,xmax,ymin,xmin] = extrema(this_LLP_costs);
+        disp(length(xmin) == 1);
+        
+        % extrema function from
+        % http://www.mathworks.com/matlabcentral/fileexchange/12275-extrema-m--extrema2-m
+        % with more explanation on http://blogs.mathworks.com/pick/2008/05/09/finding-local-extrema/
+        % (an extension extrema2.m can be downloaded to find extrema for 3D plots)
+
+        % Plot the cost along this LLP isopleth with local minima and maxima
+        % The optimal system is within the search range if exactly 1 minimum
+        
+        figure(9)
+        x = 1:length(this_LLP_costs);
+        plot(x,this_LLP_costs,'-o')        
+        hold on
+        plot(x(xmax),ymax,'r*',x(xmin),ymin,'g*')        
+        hold off
+        
+        
+        
 
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% PART 4
