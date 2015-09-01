@@ -46,7 +46,7 @@ clear all
 close all
 tic                                                           % Start timer for the script
 
-x_llp = linspace(1,20,20);                                    % range of LLP_target (Loss of Load Probability) in [%]
+x_llp = linspace(0,100,101);                                    % range of LLP_target (Loss of Load Probability) in [%]
 loadCurve_titles = [100];                                     % array with names (i.e. name them by year) of all load curves to be imported. In the case '[100]' there is just one called '100'. 
 makePlot = 0;                                                 % set to 1 if plots are desired
 columns = length(loadCurve_titles) * 6;                       % since we will be interested in 6 variables at the end
@@ -54,10 +54,10 @@ MA_opt_norm_bhut_jun15_20_10 = zeros(length(x_llp), columns); % initialization o
 
 % Simulation input data
 min_PV = 0;               % Min PV power simulated [kW]
-max_PV = 600;               % Max PV power simulated [kW]
+max_PV = 300;               % Max PV power simulated [kW]
 step_PV = 10;               % PV power simulation step [kW]
 min_batt = 0;               % Min Battery capacity simulated [kWh]
-max_batt = 1000;             % Max Battery capacity simulated [kWh]
+max_batt = 800;             % Max Battery capacity simulated [kWh]
 step_batt = 20;             % Battery capacity simulation step [kWh]
 
 % Computing Number of simulations
@@ -311,11 +311,18 @@ for year = loadCurve_titles                                   % outer loop going
         %% PART 3
         % LOOKING FOR THE OPTIMUM PLANT AS REGARDS THE TARGETED LLP
 
-        LLP_var = 0.3;                                                                            % accepted error band near targeted LLP value. Note that values are not in % but in [0,1]. So LLP_var = 0.005 means that we look for an LLP of 14% within 0.135 to 0.145 (i.e. 13.5% to 14.5%)
+        clear posPV posBatt NPC_opt kW_opt kWh_opt LLP_opt LCoE_opt IC_opt this_LLP this_LLP_costs
+        
+        LLP_var = 0.005;                                                                            % accepted error band near targeted LLP value. Note that values are not in % but in [0,1]. So LLP_var = 0.005 means that we look for an LLP of 14% within 0.135 to 0.145 (i.e. 13.5% to 14.5%)
         [posPV, posBatt] = find( (LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var) );     % find possible systems with targeted LLP (within error band). Recall that LLP is a (n_PV x n_batt)-matrix. Example of this syntax: http://se.mathworks.com/help/matlab/ref/find.html#budq84b-1
+        
+        if isempty(posPV)
+            continue;                           % exit this loop if no values found for this LLP_target
+        end
+        
         NPC_opt = min( diag(NPC(posPV, posBatt)) );                                                 % finds the system within the targeted set that has the minimal NPC
         
-        for i = 1 : size(posPV, 1)
+        for i = 1:size(posPV, 1)
             if NPC(posPV(i), posBatt(i)) == NPC_opt
                 PV_opt = posPV(i);
                 Batt_opt = posBatt(i);
@@ -332,17 +339,15 @@ for year = loadCurve_titles                                   % outer loop going
         
         % check that the optimal values are within the search range of PV/battery:
         
-        this_LLP = find((LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var));       % gives index nrs of LLP matrix that correspond to this LLP isopleth
-        this_LLP_costs = NPC(this_LLP);                                                     % gives cost (NPC) along this LLP isopleth
+        LLP_flipped = flipud(LLP);                  % flipping LLP matrix up-down s.t. find() will search through the matrix in the order along the LLP isopleths
+        NPC_flipped = flipud(NPC);                  % flipping NPC matrix up-down s.t. matrix coordinates correspond with LLP_flipped
+        this_LLP = find((LLP_target - LLP_var) < LLP_flipped & LLP_flipped < (LLP_target + LLP_var));       % gives index nrs of LLP matrix that correspond to this LLP isopleth
+        this_LLP_costs = NPC_flipped(this_LLP);                                                                     % gives cost (NPC) along this LLP isopleth
         
-        [ymax,xmax,ymin,xmin] = extrema(this_LLP_costs);
-        disp(length(xmin) == 1);
+        [ymax,xmax,ymin,xmin] = extrema_no_boundaries(this_LLP_costs);
+        accept = ~isempty(xmin);                    % accept if there is at least one minimum in the cost curve along the LLP isopleth
+        disp(['max: ', num2str(length(xmax)), '  min: ',num2str(length(xmin)), '  accept: ',num2str(accept)])
         
-        % extrema function from
-        % http://www.mathworks.com/matlabcentral/fileexchange/12275-extrema-m--extrema2-m
-        % with more explanation on http://blogs.mathworks.com/pick/2008/05/09/finding-local-extrema/
-        % (an extension extrema2.m can be downloaded to find extrema for 3D plots)
-
         % Plot the cost along this LLP isopleth with local minima and maxima
         % The optimal system is within the search range if exactly 1 minimum
         
@@ -352,7 +357,10 @@ for year = loadCurve_titles                                   % outer loop going
         hold on
         plot(x(xmax),ymax,'r*',x(xmin),ymin,'g*')        
         hold off
-        
+        set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+        title(['Extrema of costs along the LLP = ',num2str(LLP_target*100),'% isopleth']);
+        xlabel(['Nr of system along the LLP = ',num2str(LLP_target*100),'% isopleth']);
+        ylabel('Costs (NPC) [EUR]');
         
         
 
@@ -377,29 +385,29 @@ for year = loadCurve_titles                                   % outer loop going
 %         if false
         figure(4);
         mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, NPC);
-        title('Net Present Cost');
         set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+        title('Net Present Cost');
         xlabel('Battery Bank size [kWh]');
         ylabel('PV array size [kW]');
 
         figure(5);
         mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, LLP);
-        title('Loss of Load Probability');
         set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+        title('Loss of Load Probability');
         xlabel('Battery Bank size [kWh]');
         ylabel('PV array size [kW]');
 
         figure(6);
         mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, LCoE);
-        title('Levelized Cost of Energy');
         set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+        title('Levelized Cost of Energy');
         xlabel('Battery Bank size [kWh]');
         ylabel('PV array size [kW]');
 
         figure(7);
         mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, num_batt);
-        title('Num. of battery employed due to lifetime limit');
         set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+        title('Num. of battery employed due to lifetime limit');
         xlabel('Battery Bank size [kWh]');
         ylabel('PV array size [kW]');
     end
@@ -442,7 +450,7 @@ min = roundn(min(NPC(:)),4);                            % lowest cost that occur
 max = roundn(max(NPC(:)),4);                            % highest cost that occurs rounded to 10^4 EUR
 budget_range = linspace(min, max, 10);
 
-% plotting isopleths of equal cost (NPC) in black on top
+% plotting isopleths of equal cost (NPC) in black
 for cost = budget_range
     [cost_x, cost_y] = find(NPC_rounded == cost);       % find all systems (x,y) = (PV_i, batt_i) for this cost
     cost_x = min_PV + (cost_x - 1) * step_PV;           % convert to correct values of PV i.e. in [kW] instead of their order 1, 2, 3, ...
@@ -452,11 +460,10 @@ end
 
 hold off
 bar = colorbar;
-ylabel(bar,'Loss of Load Probability [%]')
 set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+ylabel(bar,'Loss of Load Probability [%]')
 xlabel('Battery bank size [kWh]')
 ylabel('PV array size [kW]')
-set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
 title('The LLP of each (batt, PV) system in colour. Isopleths of equal cost (NPC) are in black.')
 
 %%
