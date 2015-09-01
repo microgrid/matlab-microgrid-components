@@ -46,19 +46,19 @@ clear all
 close all
 tic                                                           % Start timer for the script
 
-x_llp = linspace(0,100,101);                                    % range of LLP_target (Loss of Load Probability) in [%]
+x_llp = linspace(90,95,6);                                    % range of LLP_target (Loss of Load Probability) in [%]
 loadCurve_titles = [100];                                     % array with names (i.e. name them by year) of all load curves to be imported. In the case '[100]' there is just one called '100'. 
 makePlot = 0;                                                 % set to 1 if plots are desired
 columns = length(loadCurve_titles) * 6;                       % since we will be interested in 6 variables at the end
 MA_opt_norm_bhut_jun15_20_10 = zeros(length(x_llp), columns); % initialization of the optimal-solution matrix
 
 % Simulation input data
-min_PV = 0;               % Min PV power simulated [kW]
+min_PV = 0;                 % Min PV power simulated [kW]
 max_PV = 300;               % Max PV power simulated [kW]
-step_PV = 10;               % PV power simulation step [kW]
+step_PV = 5;                % PV power simulation step [kW]
 min_batt = 0;               % Min Battery capacity simulated [kWh]
 max_batt = 800;             % Max Battery capacity simulated [kWh]
-step_batt = 20;             % Battery capacity simulation step [kWh]
+step_batt = 10;             % Battery capacity simulation step [kWh]
 
 % Computing Number of simulations
 n_PV = ((max_PV - min_PV) / step_PV) + 1;                     % N. of simulated PV power sizes (i.e. N. of iteration on PV)
@@ -336,7 +336,7 @@ for year = loadCurve_titles                                   % outer loop going
         IC_opt = IC(PV_opt, Batt_opt);
         
         
-        
+
         % check that the optimal values are within the search range of PV/battery:
         
         LLP_flipped = flipud(LLP);                  % flipping LLP matrix up-down s.t. find() will search through the matrix in the order along the LLP isopleths
@@ -346,7 +346,7 @@ for year = loadCurve_titles                                   % outer loop going
         
         [ymax,xmax,ymin,xmin] = extrema_no_boundaries(this_LLP_costs);
         accept = ~isempty(xmin);                    % accept if there is at least one minimum in the cost curve along the LLP isopleth
-        disp(['max: ', num2str(length(xmax)), '  min: ',num2str(length(xmin)), '  accept: ',num2str(accept)])
+        disp(['max: ', num2str(length(xmax)), '  min: ',num2str(length(xmin)), '  accept: ',num2str(accept),'  LLP: ',num2str(LLP_target*100)])
         
         % Plot the cost along this LLP isopleth with local minima and maxima
         % The optimal system is within the search range if exactly 1 minimum
@@ -445,17 +445,17 @@ if dots_counter > 0
 end
 
 % rounding costs in order to compare up to x digits with certain values of isopleths
-NPC_rounded = roundn(NPC,4);                            % round the cost to 10^4 EUR
+NPC_rounded_flipped = roundn(NPC_flipped,4);                            % round the cost to 10^4 EUR
 min = roundn(min(NPC(:)),4);                            % lowest cost that occurs rounded to 10^4 EUR
 max = roundn(max(NPC(:)),4);                            % highest cost that occurs rounded to 10^4 EUR
 budget_range = linspace(min, max, 10);
 
 % plotting isopleths of equal cost (NPC) in black
 for cost = budget_range
-    [cost_x, cost_y] = find(NPC_rounded == cost);       % find all systems (x,y) = (PV_i, batt_i) for this cost
+    [cost_x, cost_y_flipped] = find(NPC_rounded_flipped == cost);       % find all systems (x,y) = (PV_i, batt_i) for this cost
     cost_x = min_PV + (cost_x - 1) * step_PV;           % convert to correct values of PV i.e. in [kW] instead of their order 1, 2, 3, ...
-    cost_y = min_batt + (cost_y - 1) * step_batt;
-    plot(cost_y, cost_x,'k-o','linewidth',1.1)
+    cost_y_flipped = max_batt - (cost_y_flipped - 1) * step_batt;
+    plot(cost_y_flipped, cost_x,'k-o','linewidth',1.1)
 end
 
 hold off
