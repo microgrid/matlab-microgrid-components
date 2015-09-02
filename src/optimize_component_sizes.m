@@ -74,7 +74,7 @@ end
 makePlot = 0;                                                       % set to 1 if plots are desired
 loadCurve_titles = [100];                                           % array with names (i.e. name them by year) of all load curves to be imported. In the case '[100]' there is just one called '100'. 
 columns = length(loadCurve_titles) * 6;                             % since we will be interested in 6 variables at the end
-MA_opt_norm_bhut_jun15_20_10 = zeros(length(range_LLP), columns);   % initialization of the optimal-solution matrix
+MA_opt_norm_bhut = zeros(length(range_LLP), columns);               % initialization of the optimal-solution matrix
 
 % Simulation input data
 min_PV = 0;                 % Min PV power simulated [kW]
@@ -100,7 +100,7 @@ load_curves_counter = 0;                                      % counter for the 
     
 for year = loadCurve_titles                                   % outer loop going through all the different data sets
     
-    clearvars -except x_llp a_x makePlot MA_opt_norm_bhut_jun15_20_10 year loadCurve_titles load_curves_counter min_PV max_PV step_PV n_PV min_batt max_batt step_batt n_batt range_LLP LLP_fixed mode budget_fixed
+    clearvars -except x_llp a_x makePlot MA_opt_norm_bhut year loadCurve_titles load_curves_counter min_PV max_PV step_PV n_PV min_batt max_batt step_batt n_batt range_LLP LLP_fixed mode budget_fixed
 
     load_curves_counter = load_curves_counter + 1;
         
@@ -121,6 +121,7 @@ for year = loadCurve_titles                                   % outer loop going
     SoC = zeros(1,size(Load,2));            % to save step-by-step SoC (State of Charge) of the battery
     IC = zeros(n_PV, n_batt);               % Investment Cost (IC) [EUR]
     YC = zeros(n_PV, n_batt);               % Operations & Maintenance & replacement; present cost [EUR]
+    accept(1:length(range_LLP)) = -1;       % To check whether the found optimal solution is the best one. Declaring a value of -1 everywhere since we are filling it with 0 and 1.
 
     %% System components 
     % System details and input variables are as follows
@@ -327,9 +328,9 @@ for year = loadCurve_titles                                   % outer loop going
         
     save('results.mat')
     
-    % iterate over Loss of Load Probabilities (LLP)
+    % iterate over Loss of Load Probabilities (LLP)    
     for a_x = 1 : length(range_LLP) 
-        LLP_target = range_LLP(a_x)/100;                                        % gives LLP in [%] 
+        LLP_target = range_LLP(a_x)/100;                                    % gives LLP in [%] 
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% PART 3
@@ -369,11 +370,11 @@ for year = loadCurve_titles                                   % outer loop going
         this_LLP_costs = NPC_flipped(this_LLP);                                                                     % gives cost (NPC) along this LLP isopleth
         
         [ymax,xmax,ymin,xmin] = extrema_no_boundaries(this_LLP_costs);
-        accept = ~isempty(xmin);                    % accept if there is at least one minimum in the cost curve along the LLP isopleth
-        disp(['max: ', num2str(length(xmax)), '  min: ',num2str(length(xmin)), '  accept: ',num2str(accept),'  LLP: ',num2str(LLP_target*100)])
+        accept(a_x) = ~isempty(xmin);                    % accept if there is at least one minimum in the cost curve along the LLP isopleth
+        disp(['max: ', num2str(length(xmax)), '  min: ',num2str(length(xmin)), '  accept: ',num2str(accept(a_x)),'  LLP: ',num2str(LLP_target*100)])
         
         % Plot the cost along this LLP isopleth with local minima and maxima
-        % The optimal system is within the search range if exactly 1 minimum
+        % The optimal system is within the search range if at least 1 minimum
         
         figure(9)
         x = 1:length(this_LLP_costs);
@@ -386,7 +387,6 @@ for year = loadCurve_titles                                   % outer loop going
         xlabel(['Nr of system along the LLP = ',num2str(LLP_target*100),'% isopleth']);
         ylabel('Costs (NPC) [EUR]');
         
-        
 
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% PART 4
@@ -398,7 +398,7 @@ for year = loadCurve_titles                                   % outer loop going
 
         opt_sol = [LLP_opt NPC_opt kW_opt kWh_opt LCoE_opt IC_opt];
 
-        MA_opt_norm_bhut_jun15_20_10(a_x, ((6 * load_curves_counter - 5) : 6 * load_curves_counter)) = opt_sol;     % the : operator sets the range of y-coordinates that the array opt_sol will take in the matrix MA_opt_norm_bhut_jun15_20_10        
+        MA_opt_norm_bhut(a_x, ((6 * load_curves_counter - 5) : 6 * load_curves_counter)) = opt_sol;     % the : operator sets the range of y-coordinates that the array opt_sol will take in the matrix MA_opt_norm_bhut        
     end
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -492,4 +492,21 @@ title('The LLP of each (batt, PV) system in colour. Isopleths of equal cost (NPC
 
 %%
 toc % End timer
-save('MA_opt_norm_bhut_jun15_20_10.mat','MA_opt_norm_bhut_jun15_20_10')
+save('MA_opt_norm_bhut.mat','MA_opt_norm_bhut')
+
+if mode == 1
+    disp(['For the fixed LLP of ',num2str(LLP_fixed),'% the optimal system costs EUR ',num2str(round(NPC_opt)),' and is given in MA_opt_norm_bhut.mat.'])
+    disp('The columns mean LLP_opt NPC_opt PV_opt[kW] batt_opt[kW] LCoE_opt IC_opt, respectively.')
+    if accept(1) == 0
+        warning('The true optimal system may lie outside the range of searched PV/batt sizes (accept=0).')
+    end
+elseif mode ==3
+    disp('For each LLP in the range the optimal system (lowest cost) is given in MA_opt_norm_bhut.mat.')
+    disp('Each row gives the optimal system for one value of LLP, in the order of LLP_range.')
+    disp('The columns mean LLP_opt NPC_opt PV_opt[kW] batt_opt[kW] LCoE_opt IC_opt, respectively.')
+    
+    problematic_LLPs = range_LLP(find(accept == 0));
+    if ~isempty(problematic_LLPs)
+       warning(['For the ',num2str(length(problematic_LLPs)),' values of LLP given in the vector ''problematic_LLPs'' (in %), the true optimal system may lie outside the range of searched PV/batt sizes (accept=0).']) 
+    end
+end
