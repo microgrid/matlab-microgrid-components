@@ -28,7 +28,7 @@
 % the data from 2009-2013 are data collected from Statnett, and manipulated
 % in the script resize. The data called LoadCurve_scaled_2000 is the
 % standard data picked from the model of Stefano Mandelli and is not
-% manipulated in any way. It is only renamed for running-purposes.
+% manipulated in any way. It is only renamed for running purposes.
 
 % LoadCurve_scaled_1 is a constant array with the same energy over the year
 % as 2000, but with same hourly values every day year around.
@@ -44,13 +44,37 @@
 
 clear all
 close all
-tic                                                           % Start timer for the script
+tic                                         % Start timer for the script
 
-x_llp = linspace(90,95,6);                                    % range of LLP_target (Loss of Load Probability) in [%]
-loadCurve_titles = [100];                                     % array with names (i.e. name them by year) of all load curves to be imported. In the case '[100]' there is just one called '100'. 
-makePlot = 0;                                                 % set to 1 if plots are desired
-columns = length(loadCurve_titles) * 6;                       % since we will be interested in 6 variables at the end
-MA_opt_norm_bhut_jun15_20_10 = zeros(length(x_llp), columns); % initialization of the optimal-solution matrix
+% choose a mode to run the script: 
+% 1 for fixed LLP, 2 for fixed cost, 3 for computing for all LLP and all cost
+mode = 3;
+
+if mode == 1
+    % specify if mode = 1 (fixed LLP):
+    LLP_fixed = 50;                         % aimed LLP in [%]. The program will find the lowest budget for this LLP.
+    
+    disp(['The program runs in mode 1 (fixed LLP): for a fixed LLP of ',num2str(LLP_fixed), '% it looks for the lowest cost.']);
+    range_LLP = LLP_fixed;                  % in this mode the range only consists of 1 fixed value
+elseif mode == 2
+    % specify if mode = 2 (fixed cost):
+    budget_fixed = 800000;                  % aimed budget in [EUR]. The program will find the lowest LLP for this budget.
+    
+    disp(['The program runs in mode 2 (fixed cost): for a fixed cost of EUR ', num2str(budget_fixed), ' it looks for the lowest LLP.']);
+    range_LLP = [];                         % in this mode we do not iterate over LLP (only over cost) so we skip the for loop over range_LLP.
+elseif mode == 3
+    % specify if mode = 3 (all LLP, all cost):
+    range_LLP = linspace(0,100,101);        % range of LLP_target (Loss of Load Probability) in [%]
+    
+    disp(['The program runs in mode 3 (all LLP, all cost). It runs for all LLP between ',num2str(range_LLP(1)),'% and ',num2str(range_LLP(end)),'% in ',num2str(length(range_LLP)-1),' steps.']);
+else
+    error('ERROR: please specify a mode to run the program in. Choose mode=1 for fixed LLP, mode=2 for fixed cost or mode=3 for computing for all LLP and all cost.');
+end
+
+makePlot = 0;                                                       % set to 1 if plots are desired
+loadCurve_titles = [100];                                           % array with names (i.e. name them by year) of all load curves to be imported. In the case '[100]' there is just one called '100'. 
+columns = length(loadCurve_titles) * 6;                             % since we will be interested in 6 variables at the end
+MA_opt_norm_bhut_jun15_20_10 = zeros(length(range_LLP), columns);   % initialization of the optimal-solution matrix
 
 % Simulation input data
 min_PV = 0;                 % Min PV power simulated [kW]
@@ -76,17 +100,17 @@ load_curves_counter = 0;                                      % counter for the 
     
 for year = loadCurve_titles                                   % outer loop going through all the different data sets
     
-    clearvars -except x_llp a_x makePlot MA_opt_norm_bhut_jun15_20_10 year loadCurve_titles load_curves_counter min_PV max_PV step_PV n_PV min_batt max_batt step_batt n_batt
+    clearvars -except x_llp a_x makePlot MA_opt_norm_bhut_jun15_20_10 year loadCurve_titles load_curves_counter min_PV max_PV step_PV n_PV min_batt max_batt step_batt n_batt range_LLP LLP_fixed mode budget_fixed
 
     load_curves_counter = load_curves_counter + 1;
-    
+        
     % importing 3 data files that describe one year with hourly resolution i.e. 24 x 365 = (8760)-row vectors.                                                
     path_to_dataBase = '/Users/jeemijn/Desktop/NTNU_microgrids/matlab/matlab-microgrid-components/dataBase/';
     irr = importdata([path_to_dataBase, 'solar_data_Phuntsholing_baseline.mat']);                       % Use \ for Windows and / for Mac and Linux
     filename = ([path_to_dataBase, 'LoadCurve_normalized_single_3percent_',num2str(year),'.mat']);      % Average hourly global radiation (beam + diffuse) incident on the PV array [kW/m2]. Due to the simulation step [1h], this is also [kWh/m2]
     Load = importdata(filename);                                                                        % Import Load curve 
     T_amb = importdata([path_to_dataBase, 'surface_temp_phuent_2004_hour.mat']);                        % Import ambient temperature data
-         
+    
     % Declaration of simulation variables
     EPV = zeros(n_PV, n_batt);              % Energy PV (EPV): yearly energy produced by the PV array [kWh]
     ELPV = zeros(length(irr), n_PV, n_batt);% Energy Loss PV (ELPV): energy produced by the PV array not exploited (i.e. dissipated energy) per time period for each combination of PV and battery [kWh] (Does not include charging losses) 
@@ -100,7 +124,7 @@ for year = loadCurve_titles                                   % outer loop going
 
     %% System components 
     % System details and input variables are as follows
-
+    
     % PV panels
     eff_BoS = 0.85;             % Balance Of System: account for such factors as soiling of the panels, wiring losses, shading, snow cover, aging, and so on
     T_ref = 20;                 % Nominal ambient test-temperature of the panels [C] % todo in fullYear script this was 25 and in SAPV it was 20. which one?
@@ -224,7 +248,7 @@ for year = loadCurve_titles                                   % outer loop going
                     title('Energy produced and estimated load profile over the year (2nd steps PV and Batt)')
                     legend('Energy from PV', 'Energy flow from battery','Load profile')
 
-                    % integration of figure(1) to find rough LLP estimate
+                    % integrate figure(1) to find rough LLP estimate
                     free = min(Load, P_pv);                                         % energy for free, i.e. directly from PV without battery intervenience, is the area under this graph. 
                                                                                     % N.B. Assumption: both Load and P_pv are positive functions
                     time = 1:length(irr);
@@ -302,10 +326,10 @@ for year = loadCurve_titles                                   % outer loop going
     LCoE = (NPC * CRF)./(sum(Load, 2) - total_loss_load);                   % Levelized Cost of Energy i.e. cost per kWh (here in ) of building and operating the plant over an assumed life cycle. This is important as we want it to be competitive with the grid LCoE. See eqn. (7.6) in thesis Stefano Mandelli.
         
     save('results.mat')
-
+    
     % iterate over Loss of Load Probabilities (LLP)
-    for a_x = 1 : length(x_llp) 
-        LLP_target = x_llp(a_x)/100;                                        % gives LLP in [%] 
+    for a_x = 1 : length(range_LLP) 
+        LLP_target = range_LLP(a_x)/100;                                        % gives LLP in [%] 
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% PART 3
@@ -445,7 +469,7 @@ if dots_counter > 0
 end
 
 % rounding costs in order to compare up to x digits with certain values of isopleths
-NPC_rounded_flipped = roundn(NPC_flipped,4);                            % round the cost to 10^4 EUR
+NPC_rounded_flipped = roundn(flipud(NPC),4);            % round the cost to 10^4 EUR
 min = roundn(min(NPC(:)),4);                            % lowest cost that occurs rounded to 10^4 EUR
 max = roundn(max(NPC(:)),4);                            % highest cost that occurs rounded to 10^4 EUR
 budget_range = linspace(min, max, 10);
