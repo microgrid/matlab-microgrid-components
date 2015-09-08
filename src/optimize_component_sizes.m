@@ -550,11 +550,13 @@ ylabel('PV array size [kW]')
 title('The LLP of each (batt, PV) system in colour. Isopleths of equal cost (NPC) are in black.')
 
 %%
-toc % End timer
 save('MA_opt_norm_bhut.mat','MA_opt_norm_bhut')
 
 if mode == 1
-    disp(['For the fixed LLP of ',num2str(LLP_fixed),'% the optimal system costs EUR ',num2str(round(NPC_opt)),' and is given in MA_opt_norm_bhut.mat.'])
+%     disp(['For the fixed LLP of ',num2str(LLP_fixed),'% the optimal
+%     system costs EUR ',num2str(round(NPC_opt)),' and is given in
+%     MA_opt_norm_bhut.mat.'])                  % todo gives error if NPC_opt empty
+    disp(['For the fixed LLP of ',num2str(LLP_fixed),'% the optimal system is given in MA_opt_norm_bhut.mat.'])
     disp('The columns mean LLP_opt NPC_opt PV_opt[kW] batt_opt[kW] LCoE_opt IC_opt, respectively.')
 elseif mode ==3
     disp('For each LLP in the range the optimal system (lowest cost) is given in MA_opt_norm_bhut.mat.')
@@ -566,3 +568,5 @@ elseif mode ==3
        warning(['For the ',num2str(length(problematic_LLPs)),' values of LLP given in the vector ''problematic_LLPs'' (in %), the true optimal system may lie outside the range of searched PV/batt sizes (accept=0).']) 
     end
 end
+
+toc % End timer
