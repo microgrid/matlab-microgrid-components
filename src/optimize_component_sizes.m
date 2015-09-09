@@ -64,7 +64,7 @@ elseif mode == 2
     range_LLP = [];                         % in this mode we do not iterate over LLP (only over cost) so we skip the for loop over range_LLP.
 elseif mode == 3
     % specify if mode = 3 (all LLP, all cost):
-    range_LLP = linspace(0,85,86);        % range of LLP_target (Loss of Load Probability) in [%]
+    range_LLP = linspace(0,100,101);        % range of LLP_target (Loss of Load Probability) in [%]
     
     disp(['The program runs in mode 3 (all LLP, all cost). It runs for all LLP between ',num2str(range_LLP(1)),'% and ',num2str(range_LLP(end)),'% in ',num2str(length(range_LLP)-1),' steps.']);
 else
@@ -83,6 +83,14 @@ step_PV = 5;                % PV power simulation step [kW]
 min_batt = 0;               % Min Battery capacity simulated [kWh]
 max_batt = 800;             % Max Battery capacity simulated [kWh]
 step_batt = 10;             % Battery capacity simulation step [kWh]
+
+% for Bangladesh:
+% min_PV = 0;               % Min PV power simulated [kW]
+% max_PV = 50;              % Max PV power simulated [kW]
+% step_PV = 1;              % PV power simulation step [kW]
+% min_batt = 0;             % Min Battery capacity simulated [kWh]
+% max_batt = 200;           % Max Battery capacity simulated [kWh]
+% step_batt = 5;            % Battery capacity simulation step [kWh]
 
 % Computing Number of simulations
 n_PV = ((max_PV - min_PV) / step_PV) + 1;                     % N. of simulated PV power sizes (i.e. N. of iteration on PV)
@@ -106,10 +114,19 @@ for year = loadCurve_titles                                   % outer loop going
         
     % importing 3 data files that describe one year with hourly resolution i.e. 24 x 365 = (8760)-row vectors.                                                
     path_to_dataBase = '/Users/jeemijn/Desktop/NTNU_microgrids/matlab/matlab-microgrid-components/dataBase/';
+    
     irr = importdata([path_to_dataBase, 'solar_data_Phuntsholing_baseline.mat']);                       % Use \ for Windows and / for Mac and Linux
     filename = ([path_to_dataBase, 'LoadCurve_normalized_single_3percent_',num2str(year),'.mat']);      % Average hourly global radiation (beam + diffuse) incident on the PV array [kW/m2]. Due to the simulation step [1h], this is also [kWh/m2]
     Load = importdata(filename);                                                                        % Import Load curve 
     T_amb = importdata([path_to_dataBase, 'surface_temp_phuent_2004_hour.mat']);                        % Import ambient temperature data
+
+    % for Bangladesh (T_amb is wrong, still from Bhutan):
+%     irr = importdata([path_to_dataBase, 'solar_data_KapisaGazipur.mat']);                               % Use \ for Windows and / for Mac and Linux
+%     filename = ([path_to_dataBase, 'LoadCurve_bangladesh_',num2str(year),'.mat']);                      % Average hourly global radiation (beam + diffuse) incident on the PV array [kW/m2]. Due to the simulation step [1h], this is also [kWh/m2]
+%     Load = importdata(filename);                                                                        % Import Load curve 
+%     T_amb = importdata([path_to_dataBase, 'surface_temp_phuent_2004_hour.mat']);                        % Import ambient temperature data    
+%     
+%     Load = 100 .* Load;
     
     %% System components 
     % System details and input variables are as follows
@@ -372,12 +389,12 @@ for year = loadCurve_titles                                   % outer loop going
             NPC_flipped = flipud(NPC);                  % flipping NPC matrix up-down s.t. matrix coordinates correspond with LLP_flipped
 
             % find possible systems sorted along the LLP isopleth from high to low in the PV/batt grid plot (in contrast to posPV/posBatt which follows the other direction)
-            this_LLP                = find((LLP_target - LLP_var) < LLP_flipped & LLP_flipped < (LLP_target + LLP_var));       % gives index numbers of LLP matrix that correspond to this LLP isopleth
-            [this_LLP_x,this_LLP_y] = find((LLP_target - LLP_var) < LLP_flipped & LLP_flipped < (LLP_target + LLP_var));       % gives (x,y) coordinates of LLP matrix that correspond to this LLP isopleth. 
+            this_LLP                = find((LLP_target - LLP_var) < LLP_flipped & LLP_flipped < (LLP_target + LLP_var));       % gives index numbers of LLP_flipped matrix that correspond to this LLP isopleth
+            [this_LLP_x,this_LLP_y] = find((LLP_target - LLP_var) < LLP_flipped & LLP_flipped < (LLP_target + LLP_var));       % gives (x,y) coordinates of LLP_flipped matrix that correspond to this LLP isopleth. 
             this_LLP_costs = NPC_flipped(this_LLP);     % gives cost (NPC) along this LLP isopleth
 
-            [ymax,xmax,ymin,xmin] = extrema_no_boundaries(this_LLP_costs);
-            accept(a_x) = ~isempty(xmin);               % accept if there is at least one minimum in the cost curve along the LLP isopleth
+            [ymax,xmax,ymin,xmin] = extrema_no_boundaries(this_LLP_costs);            
+            accept(a_x) = length(xmin) > length(xmax);  % accept if there are more local minima than local maxima in the cost curve along the LLP isopleth i.e. if there is a global minimum (not lying at the boundary)
             disp(['LLP: ',num2str(LLP_target*100),'%  accept: ',num2str(accept(a_x)),'  max: ', num2str(length(xmax)),'  min: ',num2str(length(xmin))])
 
             % Plot the cost along this LLP isopleth with local minima and maxima
@@ -419,25 +436,34 @@ for year = loadCurve_titles                                   % outer loop going
                     length_PV = max_PV - min_PV;            
                     if this_LLP_costs(1) > this_LLP_costs(end)      % graph in figure(9) is decreasing so minimum lies at larger batt size and/or smaller PV size
                         % change the placement of the search range s.t. the end point of
-                        % the LLP isopleth lies in the upper left corner of the new range:
-                        x_end = min_batt + (this_LLP_x(end) - 1) * step_batt;
-                        y_end = min_PV + (this_LLP_y(end) - 1) * step_PV; 
+                        % the LLP isopleth lies in the UPPER LEFT corner of the new range (in figure (8)):
+                        x_end = min_batt + (this_LLP_x(end) - 1) * step_batt;       % the battery size of the ending point of the LLP isopleth
+                        y_end = min_PV + (this_LLP_y(end) - 1) * step_PV;           % the PV size of the ending point of the LLP isopleth
 
-                        min_batt = x_end - factor_to_edge * length_batt;
+                        min_batt = x_end - factor_to_edge * length_batt;    % new value of min_batt, having a slightly lower value (battery size) than x_end s.t. in LEFT corner
                         max_batt = min_batt + length_batt;
-                        min_PV = y_end - factor_to_edge * length_PV;
-                        max_PV = min_PV + length_PV;
+                        max_PV = y_end + factor_to_edge * length_PV;        % new value of max_PV, having a slightly higher value (PV size) than y_end s.t. in UPPER corner
+                        min_PV = max_PV - length_PV;
                     else                                            % graph in figure(9) is increasing so minimum lies at smaller batt size and/or larger PV size
                         % change the placement of the search range s.t. the starting point of
-                        % the LLP isopleth lies in the down right corner of the new range:
+                        % the LLP isopleth lies in the DOWN RIGHT corner of the new range (in figure (8)):
                         x_start = min_batt + (this_LLP_x(1) - 1) * step_batt;
                         y_start = min_PV + (this_LLP_y(1) - 1) * step_PV;
 
-                        max_batt = x_start + factor_to_edge * length_batt;
-                        min_batt = max_batt - length_batt;
-                        max_PV = y_start + factor_to_edge * length_PV;
-                        min_PV = max_PV - length_PV;
+                        max_batt = x_start + factor_to_edge * length_batt;  % new value of max_batt, having a slightly higher value (batter size) than x_start s.t. in RIGHT corner
+                        min_batt = max_batt - length_batt;          
+                        min_PV = y_start - factor_to_edge * length_PV;      % new value of min_PV, having a slightly lower value (PV size) than y_start s.t. in DOWN corner
+                        max_PV = min_PV + length_PV;                        
                     end
+                    % make sure that new search ranges are non-negative:
+                    if min_batt < 0
+                        min_batt = 0;
+                        max_batt = length_batt;
+                    end
+                    if min_PV < 0
+                        min_PV = 0;
+                        max_PV = length_PV;
+                    end                    
                     disp('Changed PV and battery range and restarted simulation.')
                     break;                                                  % terminate for loop over llp (only over 1 value in mode 1) s.t. the optimal solution matrix is not saved below and run whole simulation in while loop again with new initial values
                 else                                                        % in this case: at least option 2). (possibly also option 1).)
@@ -516,8 +542,8 @@ for i = 1:n_PV
         
         x_values(dots_counter) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
         y_values(dots_counter) = this_PV;                   
-%         colors(dots_counter) = LLP(i,j)*100;                    % choose colour of the dot according to value of Loss of Load Probability in [%]. 
-        colors(dots_counter) = roundn(LLP(i,j)*100,1);          % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
+        colors(dots_counter) = LLP(i,j)*100;                    % choose colour of the dot according to value of Loss of Load Probability in [%]. 
+%         colors(dots_counter) = roundn(LLP(i,j)*100,1);          % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
     end
 end
 
@@ -529,9 +555,9 @@ end
 
 % rounding costs in order to compare up to x digits with certain values of isopleths
 NPC_rounded_flipped = roundn(flipud(NPC),4);            % round the cost to 10^4 EUR
-min = roundn(min(NPC(:)),4);                            % lowest cost that occurs rounded to 10^4 EUR
-max = roundn(max(NPC(:)),4);                            % highest cost that occurs rounded to 10^4 EUR
-budget_range = linspace(min, max, 10);
+min_cost = roundn(min(NPC(:)),4);                            % lowest cost that occurs rounded to 10^4 EUR
+max_cost = roundn(max(NPC(:)),4);                            % highest cost that occurs rounded to 10^4 EUR
+budget_range = linspace(min_cost, max_cost, 10);
 
 % plotting isopleths of equal cost (NPC) in black
 for cost = budget_range
@@ -553,9 +579,6 @@ title('The LLP of each (batt, PV) system in colour. Isopleths of equal cost (NPC
 save('MA_opt_norm_bhut.mat','MA_opt_norm_bhut')
 
 if mode == 1
-%     disp(['For the fixed LLP of ',num2str(LLP_fixed),'% the optimal
-%     system costs EUR ',num2str(round(NPC_opt)),' and is given in
-%     MA_opt_norm_bhut.mat.'])                  % todo gives error if NPC_opt empty
     disp(['For the fixed LLP of ',num2str(LLP_fixed),'% the optimal system is given in MA_opt_norm_bhut.mat.'])
     disp('The columns mean LLP_opt NPC_opt PV_opt[kW] batt_opt[kW] LCoE_opt IC_opt, respectively.')
 elseif mode ==3
