@@ -404,8 +404,18 @@ for year = loadCurve_titles                                   % outer loop going
             
             %% Check that the optimal values are within the search range of PV/battery:
 
-            [ymax,xmax,ymin,xmin] = extrema_no_boundaries(this_LLP_costs);            
-            accept(a_x) = length(xmin) > length(xmax);      % accept if there are more local minima than local maxima in the cost curve along the LLP isopleth i.e. accept if there is a global minimum (not lying at the boundaries)
+            [ymax,xmax,ymin,xmin] = extrema(this_LLP_costs);
+            
+            if ~isempty(xmin)
+                global_min_x = xmin(1);                                                     % xmin() are sorted in increasing order so xmin(1) is the lowest minimum
+                accept(a_x) = global_min_x ~= 1 & global_min_x ~= length(this_LLP_costs);   % accept if there is a global minimum that does not lie on the edges of the isopleth.                                    
+            else
+                accept(a_x) = 0;                
+            end
+
+%             [ymax,xmax,ymin,xmin] = extrema_no_boundaries(this_LLP_costs);                                    
+%             accept(a_x) = length(xmin) > length(xmax);      % accept if there are more local minima than local maxima in the cost curve along the LLP isopleth i.e. accept if there is a global minimum (not lying at the boundaries)
+            
             disp(['LLP: ',num2str(LLP_target*100),'%  accept: ',num2str(accept(a_x)),'  max: ', num2str(length(xmax)),'  min: ',num2str(length(xmin))])
 
             % Plot the cost along this LLP isopleth (direction from boundary on right to boundary on top)
