@@ -52,7 +52,7 @@ mode = 1;
 
 if mode == 1
     % specify if mode = 1 (fixed LLP):
-    LLP_fixed = 40;                         % aimed LLP in [%]. The program will find the lowest budget for this LLP.
+    LLP_fixed = 45;                         % aimed LLP in [%]. The program will find the lowest budget for this LLP.
     
     disp(['The program runs in mode 1 (fixed LLP): for a fixed LLP of ',num2str(LLP_fixed), '% it looks for the lowest cost.']);
     range_LLP = LLP_fixed;                  % in this mode the range only consists of 1 fixed value
@@ -363,11 +363,21 @@ for year = loadCurve_titles                                   % outer loop going
             
             % find possible systems with targeted LLP (within error band) i.e. along the LLP isopleth. Recall that LLP is a (n_PV x n_batt)-matrix. Example of this find() syntax: http://se.mathworks.com/help/matlab/ref/find.html#budq84b-1
             % find() saves these systems in 'this_LLP' in the following order: 
-            % in the PV/batt grid plot (figure(8)) along the LLP isopleth in the direction starting from the boundary on the right hand side towards the boundary on the upper side
+            % in the PV/batt grid plot (figure(8)) along the LLP isopleth in the direction starting from the boundary on the right (or bottom) hand side towards the boundary on the top (or left) side
             
-            this_LLP                = find((LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var));        % gives index numbers of LLP_flipped matrix that correspond to this LLP isopleth            
-            [this_LLP_x, this_LLP_y] = find((LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var));        % gives (x,y) coordinates of LLP_flipped matrix that correspond to this LLP isopleth 
-            this_LLP_costs = NPC(this_LLP);                                                                     % gives cost (NPC) along this LLP isopleth
+            % But we need to follow the isopleth in the other order, from
+            % the top (or left) boundary to the right (or bottom) boundary,
+            % in order to avoid zigzagging (otherwise the ends of LLP isopleth would not be at the end points of 'this_LLP')
+            % therefore we first flip the LLP matrix in the y direction and then flip the
+            % result back
+            
+            LLP_flipped = flipud(LLP);                              % flip x coordinates (leaves y coordinates invariant)            
+            this_LLP_flipped = find((LLP_target - LLP_var) < LLP_flipped & LLP_flipped < (LLP_target + LLP_var));                   % gives index numbers of coordinates of LLP_flipped matrix that correspond to this LLP isopleth             
+            [this_LLP_x_flipped, this_LLP_y] = find((LLP_target - LLP_var) < LLP_flipped & LLP_flipped < (LLP_target + LLP_var));   % gives (x,y) coordinates of LLP_flipped matrix that correspond to this LLP isopleth             
+            this_LLP_x = (size(LLP, 1) + 1) - this_LLP_x_flipped;   % convert x coordinate back to non-flipped form (total of flipped and non_flipped coords is always size + 1)                                                
+            
+            NPC_flipped = flipud(NPC);
+            this_LLP_costs = NPC_flipped(this_LLP_flipped);                                                                           % gives cost (NPC) along this LLP isopleth
             
             if isempty(this_LLP_x)
                 if mode == 1
