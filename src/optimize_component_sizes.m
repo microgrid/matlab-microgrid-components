@@ -52,7 +52,7 @@ mode = 1;
 
 if mode == 1
     % specify if mode = 1 (fixed LLP):
-    LLP_fixed = 30;                         % aimed LLP in [%]. The program will find the lowest budget for this LLP.
+    LLP_fixed = 50;                         % aimed LLP in [%]. The program will find the lowest budget for this LLP.
     
     disp(['The program runs in mode 1 (fixed LLP): for a fixed LLP of ',num2str(LLP_fixed), '% it looks for the lowest cost.']);
     range_LLP = LLP_fixed;                  % in this mode the range only consists of 1 fixed value
@@ -60,6 +60,7 @@ elseif mode == 2
     % specify if mode = 2 (fixed cost):
     budget_fixed = 800000;                  % aimed budget in [EUR]. The program will find the lowest LLP for this budget.
     
+    % todo the program is not written yet for this mode!
     disp(['The program runs in mode 2 (fixed cost): for a fixed cost of EUR ', num2str(budget_fixed), ' it looks for the lowest LLP.']);
     range_LLP = [];                         % in this mode we do not iterate over LLP (only over cost) so we skip the for loop over range_LLP.
 elseif mode == 3
@@ -358,9 +359,16 @@ for year = loadCurve_titles                                   % outer loop going
             clear posPV posBatt NPC_opt kW_opt kWh_opt LLP_opt LCoE_opt IC_opt this_LLP this_LLP_costs
             
             LLP_var = 0.005;                                                                            % accepted error band near targeted LLP value. Note that values are not in % but in [0,1]. So LLP_var = 0.005 means that we look for an LLP of 14% within 0.135 to 0.145 (i.e. 13.5% to 14.5%)
-            [posPV, posBatt] = find( (LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var) );     % find possible systems with targeted LLP (within error band). Recall that LLP is a (n_PV x n_batt)-matrix. Example of this syntax: http://se.mathworks.com/help/matlab/ref/find.html#budq84b-1
-
-            if isempty(posPV)
+            
+            % find possible systems with targeted LLP (within error band) i.e. along the LLP isopleth. Recall that LLP is a (n_PV x n_batt)-matrix. Example of this find() syntax: http://se.mathworks.com/help/matlab/ref/find.html#budq84b-1
+            % find() saves these systems in 'this_LLP' in the following order: 
+            % in the PV/batt grid plot (figure(8)) along the LLP isopleth in the direction starting from the boundary on the right hand side towards the boundary on the upper side
+            
+            this_LLP                = find((LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var));        % gives index numbers of LLP_flipped matrix that correspond to this LLP isopleth            
+            [this_LLP_x,this_LLP_y] = find((LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var));        % gives (x,y) coordinates of LLP_flipped matrix that correspond to this LLP isopleth 
+            this_LLP_costs = NPC(this_LLP);                                                                     % gives cost (NPC) along this LLP isopleth
+            
+            if isempty(this_LLP_x)
                 if mode == 1
                     repeat = false;                 % avoid infinite while loop
                     disp('No optimal system is found for this value of LLP.')
@@ -368,12 +376,12 @@ for year = loadCurve_titles                                   % outer loop going
                 continue;                           % exit this loop if no values are found for this LLP_target
             end
 
-            NPC_opt = min( diag(NPC(posPV, posBatt)) );                                                 % finds the system within the targeted set that has the minimal NPC
+            NPC_opt = min( diag(NPC(this_LLP_x, this_LLP_y)) );                                                 % finds the system within the targeted set that has the minimal NPC
 
-            for i = 1:size(posPV, 1)
-                if NPC(posPV(i), posBatt(i)) == NPC_opt
-                    PV_opt = posPV(i);
-                    Batt_opt = posBatt(i);
+            for i = 1:size(this_LLP_x, 1)
+                if NPC(this_LLP_x(i), this_LLP_y(i)) == NPC_opt
+                    PV_opt = this_LLP_x(i);
+                    Batt_opt = this_LLP_y(i);
                 end
             end
 
@@ -383,22 +391,15 @@ for year = loadCurve_titles                                   % outer loop going
             LCoE_opt = LCoE(PV_opt, Batt_opt);
             IC_opt = IC(PV_opt, Batt_opt);
             
-            % Check that the optimal values are within the search range of PV/battery:
-
-            LLP_flipped = flipud(LLP);                  % flipping LLP matrix up-down s.t. find() will search through the matrix in the order along the LLP isopleths
-            NPC_flipped = flipud(NPC);                  % flipping NPC matrix up-down s.t. matrix coordinates correspond with LLP_flipped
-
-            % find possible systems sorted along the LLP isopleth from high to low in the PV/batt grid plot (in contrast to posPV/posBatt which follows the other direction)
-            this_LLP                = find((LLP_target - LLP_var) < LLP_flipped & LLP_flipped < (LLP_target + LLP_var));       % gives index numbers of LLP_flipped matrix that correspond to this LLP isopleth
-            [this_LLP_x,this_LLP_y] = find((LLP_target - LLP_var) < LLP_flipped & LLP_flipped < (LLP_target + LLP_var));       % gives (x,y) coordinates of LLP_flipped matrix that correspond to this LLP isopleth. 
-            this_LLP_costs = NPC_flipped(this_LLP);     % gives cost (NPC) along this LLP isopleth
+            %% Check that the optimal values are within the search range of PV/battery:
 
             [ymax,xmax,ymin,xmin] = extrema_no_boundaries(this_LLP_costs);            
-            accept(a_x) = length(xmin) > length(xmax);  % accept if there are more local minima than local maxima in the cost curve along the LLP isopleth i.e. if there is a global minimum (not lying at the boundary)
+            accept(a_x) = length(xmin) > length(xmax);      % accept if there are more local minima than local maxima in the cost curve along the LLP isopleth i.e. accept if there is a global minimum (not lying at the boundaries)
             disp(['LLP: ',num2str(LLP_target*100),'%  accept: ',num2str(accept(a_x)),'  max: ', num2str(length(xmax)),'  min: ',num2str(length(xmin))])
 
-            % Plot the cost along this LLP isopleth with local minima and maxima
-            % The optimal system is within the search range if at least 1 minimum
+            % Plot the cost along this LLP isopleth (direction from boundary on right to boundary on top)
+            % with local minima and maxima. 
+            % The optimal system is within the search range if there is a global minimum (not lying on the boundaries)
             figure(9)
             x = 1:length(this_LLP_costs);
             plot(x,this_LLP_costs,'-o')        
@@ -419,10 +420,10 @@ for year = loadCurve_titles                                   % outer loop going
             
             if mode == 1 && accept(1) == 0
                 % check whether option 1). or 2). is the case            
-                x1 = posPV(1);
-                y1 = posBatt(1);
-                x2 = posPV(end);
-                y2 = posBatt(end);
+                x1 = this_LLP_x(1);     % first point on the LLP isopleth i.e. lying on the boundary on the right in figure (8)
+                y1 = this_LLP_y(1);
+                x2 = this_LLP_x(end);   % last point on the LLP isopleth i.e. lying on the boundary on the top in figure (8)
+                y2 = this_LLP_y(end);
                 
                 first_point_crosses_edge = (x1 == 1 | x1 == n_PV | y1 == 1 | y1 == n_batt);
                 last_point_crosses_edge = (x2 == 1 | x2 == n_PV | y2 == 1 | y2 == n_batt);
@@ -434,7 +435,7 @@ for year = loadCurve_titles                                   % outer loop going
                     factor_to_edge = 0.25;                          % how far from the edge the previous ending point of LLP isopleth will lie in the new grid. Value must be in [0,1] and small e.g. 1/4. 
                     length_batt = max_batt - min_batt;
                     length_PV = max_PV - min_PV;            
-                    if this_LLP_costs(1) > this_LLP_costs(end)      % graph in figure(9) is decreasing so minimum lies at larger batt size and/or smaller PV size
+                    if this_LLP_costs(1) < this_LLP_costs(end)      % graph in figure(9) is increasing so minimum lies at larger batt size and/or smaller PV size
                         % change the placement of the search range s.t. the end point of
                         % the LLP isopleth lies in the UPPER LEFT corner of the new range (in figure (8)):
                         x_end = min_batt + (this_LLP_x(end) - 1) * step_batt;       % the battery size of the ending point of the LLP isopleth
@@ -444,7 +445,7 @@ for year = loadCurve_titles                                   % outer loop going
                         max_batt = min_batt + length_batt;
                         max_PV = y_end + factor_to_edge * length_PV;        % new value of max_PV, having a slightly higher value (PV size) than y_end s.t. in UPPER corner
                         min_PV = max_PV - length_PV;
-                    else                                            % graph in figure(9) is increasing so minimum lies at smaller batt size and/or larger PV size
+                    else                                            % graph in figure(9) is decreasing so minimum lies at smaller batt size and/or larger PV size
                         % change the placement of the search range s.t. the starting point of
                         % the LLP isopleth lies in the DOWN RIGHT corner of the new range (in figure (8)):
                         x_start = min_batt + (this_LLP_x(1) - 1) * step_batt;
@@ -554,17 +555,18 @@ if dots_counter > 0
 end
 
 % rounding costs in order to compare up to x digits with certain values of isopleths
-NPC_rounded_flipped = roundn(flipud(NPC),4);            % round the cost to 10^4 EUR
-min_cost = roundn(min(NPC(:)),4);                            % lowest cost that occurs rounded to 10^4 EUR
-max_cost = roundn(max(NPC(:)),4);                            % highest cost that occurs rounded to 10^4 EUR
-budget_range = linspace(min_cost, max_cost, 10);
+NPC_rounded = roundn(NPC,4);                                % round the cost to 10^4 EUR
+min_cost = roundn(min(NPC(:)),4);                           % lowest cost that occurs rounded to 10^4 EUR
+max_cost = roundn(max(NPC(:)),4);                           % highest cost that occurs rounded to 10^4 EUR
+budget_range = linspace(min_cost, max_cost, 10);            % determining how many budget isopleths are plotted
 
 % plotting isopleths of equal cost (NPC) in black
 for cost = budget_range
-    [cost_x, cost_y_flipped] = find(NPC_rounded_flipped == cost);       % find all systems (x,y) = (PV_i, batt_i) for this cost
-    cost_x = min_PV + (cost_x - 1) * step_PV;           % convert to correct values of PV i.e. in [kW] instead of their order 1, 2, 3, ...
-    cost_y_flipped = max_batt - (cost_y_flipped - 1) * step_batt;
-    plot(cost_y_flipped, cost_x,'k-o','linewidth',1.1)
+    [cost_x, cost_y] = find(NPC_rounded == cost);           % find all systems (x,y) = (PV_i, batt_i) for this cost
+    cost_x = min_PV + (cost_x - 1) * step_PV;               % convert to correct values of PV i.e. in [kW] instead of their order 1, 2, 3, ...
+    cost_y = min_batt + (cost_y - 1) * step_batt;
+    plot(cost_y, cost_x, 'k-o', 'linewidth', 1.1)
+    hold on
 end
 
 hold off
