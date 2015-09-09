@@ -52,7 +52,7 @@ mode = 1;
 
 if mode == 1
     % specify if mode = 1 (fixed LLP):
-    LLP_fixed = 50;                         % aimed LLP in [%]. The program will find the lowest budget for this LLP.
+    LLP_fixed = 40;                         % aimed LLP in [%]. The program will find the lowest budget for this LLP.
     
     disp(['The program runs in mode 1 (fixed LLP): for a fixed LLP of ',num2str(LLP_fixed), '% it looks for the lowest cost.']);
     range_LLP = LLP_fixed;                  % in this mode the range only consists of 1 fixed value
@@ -60,7 +60,8 @@ elseif mode == 2
     % specify if mode = 2 (fixed cost):
     budget_fixed = 800000;                  % aimed budget in [EUR]. The program will find the lowest LLP for this budget.
     
-    % todo the program is not written yet for this mode!
+    % todo the program is not written yet for this mode! Write it analogous to
+    % mode 1 but interchange the roles of LLP and budget isopleths.
     disp(['The program runs in mode 2 (fixed cost): for a fixed cost of EUR ', num2str(budget_fixed), ' it looks for the lowest LLP.']);
     range_LLP = [];                         % in this mode we do not iterate over LLP (only over cost) so we skip the for loop over range_LLP.
 elseif mode == 3
@@ -78,9 +79,9 @@ columns = length(loadCurve_titles) * 6;                             % since we w
 MA_opt_norm_bhut = zeros(length(range_LLP), columns);               % initialization of the optimal-solution matrix
 
 % Simulation input data
-min_PV = 0;                 % Min PV power simulated [kW]
-max_PV = 300;               % Max PV power simulated [kW]
-step_PV = 5;                % PV power simulation step [kW]
+min_PV = 200;                 % Min PV power simulated [kW]
+max_PV = 400;               % Max PV power simulated [kW]
+step_PV = 10;                % PV power simulation step [kW]
 min_batt = 0;               % Min Battery capacity simulated [kWh]
 max_batt = 800;             % Max Battery capacity simulated [kWh]
 step_batt = 10;             % Battery capacity simulation step [kWh]
@@ -365,13 +366,13 @@ for year = loadCurve_titles                                   % outer loop going
             % in the PV/batt grid plot (figure(8)) along the LLP isopleth in the direction starting from the boundary on the right hand side towards the boundary on the upper side
             
             this_LLP                = find((LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var));        % gives index numbers of LLP_flipped matrix that correspond to this LLP isopleth            
-            [this_LLP_x,this_LLP_y] = find((LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var));        % gives (x,y) coordinates of LLP_flipped matrix that correspond to this LLP isopleth 
+            [this_LLP_x, this_LLP_y] = find((LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var));        % gives (x,y) coordinates of LLP_flipped matrix that correspond to this LLP isopleth 
             this_LLP_costs = NPC(this_LLP);                                                                     % gives cost (NPC) along this LLP isopleth
             
             if isempty(this_LLP_x)
                 if mode == 1
                     repeat = false;                 % avoid infinite while loop
-                    disp('No optimal system is found for this value of LLP.')
+                    warning('No optimal system is found for this value of LLP. Either it is outside the search range or the step size is too large to describe the LLP isopleth. Use figure(8) to determine a new search range or step size and try again.')    
                 end
                 continue;                           % exit this loop if no values are found for this LLP_target
             end
@@ -567,6 +568,13 @@ for cost = budget_range
     cost_y = min_batt + (cost_y - 1) * step_batt;
     plot(cost_y, cost_x, 'k-o', 'linewidth', 1.1)
     hold on
+end
+
+% plotting LLP isopleth in red (if mode = 1)
+if mode == 1
+    plot_LLP_x = min_PV + (this_LLP_x - 1) * step_PV;       
+    plot_LLP_y = min_batt + (this_LLP_y - 1) * step_batt;
+    plot(plot_LLP_y, plot_LLP_x, 'r-o', 'linewidth', 1.1)
 end
 
 hold off
