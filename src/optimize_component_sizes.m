@@ -79,9 +79,9 @@ columns = length(loadCurve_titles) * 6;                             % since we w
 MA_opt_norm_bhut = zeros(length(range_LLP), columns);               % initialization of the optimal-solution matrix
 
 % Simulation input data
-min_PV = 200;                 % Min PV power simulated [kW]
-max_PV = 400;               % Max PV power simulated [kW]
-step_PV = 10;                % PV power simulation step [kW]
+min_PV = 0;                 % Min PV power simulated [kW]
+max_PV = 300;               % Max PV power simulated [kW]
+step_PV = 5;                % PV power simulation step [kW]
 min_batt = 0;               % Min Battery capacity simulated [kWh]
 max_batt = 800;             % Max Battery capacity simulated [kWh]
 step_batt = 10;             % Battery capacity simulation step [kWh]
@@ -446,26 +446,26 @@ for year = loadCurve_titles                                   % outer loop going
                     factor_to_edge = 0.25;                          % how far from the edge the previous ending point of LLP isopleth will lie in the new grid. Value must be in [0,1] and small e.g. 1/4. 
                     length_batt = max_batt - min_batt;
                     length_PV = max_PV - min_PV;            
-                    if this_LLP_costs(1) < this_LLP_costs(end)      % graph in figure(9) is increasing so minimum lies at larger batt size and/or smaller PV size
+                    if this_LLP_costs(1) > this_LLP_costs(end)      % graph in figure(9) is decreasing so minimum lies at larger batt size and/or smaller PV size
                         % change the placement of the search range s.t. the end point of
                         % the LLP isopleth lies in the UPPER LEFT corner of the new range (in figure (8)):
-                        x_end = min_batt + (this_LLP_x(end) - 1) * step_batt;       % the battery size of the ending point of the LLP isopleth
-                        y_end = min_PV + (this_LLP_y(end) - 1) * step_PV;           % the PV size of the ending point of the LLP isopleth
+                        x_end = min_PV + (this_LLP_x(end) - 1) * step_PV;       % the battery size of the ending point of the LLP isopleth
+                        y_end = min_batt + (this_LLP_y(end) - 1) * step_batt;           % the PV size of the ending point of the LLP isopleth
 
-                        min_batt = x_end - factor_to_edge * length_batt;    % new value of min_batt, having a slightly lower value (battery size) than x_end s.t. in LEFT corner
-                        max_batt = min_batt + length_batt;
-                        max_PV = y_end + factor_to_edge * length_PV;        % new value of max_PV, having a slightly higher value (PV size) than y_end s.t. in UPPER corner
+                        max_PV = x_end + factor_to_edge * length_PV;        % new value of max_PV, having a slightly higher value (PV size) than y_end s.t. in UPPER corner
                         min_PV = max_PV - length_PV;
-                    else                                            % graph in figure(9) is decreasing so minimum lies at smaller batt size and/or larger PV size
+                        min_batt = y_end - factor_to_edge * length_batt;    % new value of min_batt, having a slightly lower value (battery size) than x_end s.t. in LEFT corner
+                        max_batt = min_batt + length_batt;
+                    else                                            % graph in figure(9) is increasing so minimum lies at smaller batt size and/or larger PV size
                         % change the placement of the search range s.t. the starting point of
                         % the LLP isopleth lies in the DOWN RIGHT corner of the new range (in figure (8)):
-                        x_start = min_batt + (this_LLP_x(1) - 1) * step_batt;
-                        y_start = min_PV + (this_LLP_y(1) - 1) * step_PV;
+                        x_start = min_PV + (this_LLP_x(1) - 1) * step_PV;
+                        y_start = min_batt + (this_LLP_y(1) - 1) * step_batt;
 
-                        max_batt = x_start + factor_to_edge * length_batt;  % new value of max_batt, having a slightly higher value (batter size) than x_start s.t. in RIGHT corner
-                        min_batt = max_batt - length_batt;          
-                        min_PV = y_start - factor_to_edge * length_PV;      % new value of min_PV, having a slightly lower value (PV size) than y_start s.t. in DOWN corner
+                        min_PV = x_start - factor_to_edge * length_PV;      % new value of min_PV, having a slightly lower value (PV size) than y_start s.t. in DOWN corner
                         max_PV = min_PV + length_PV;                        
+                        max_batt = y_start + factor_to_edge * length_batt;  % new value of max_batt, having a slightly higher value (batter size) than x_start s.t. in RIGHT corner
+                        min_batt = max_batt - length_batt;          
                     end
                     % make sure that new search ranges are non-negative:
                     if min_batt < 0
@@ -477,6 +477,7 @@ for year = loadCurve_titles                                   % outer loop going
                         max_PV = length_PV;
                     end                    
                     disp('Changed PV and battery range and restarted simulation.')
+                    disp(['New range: PV [',num2str(min_PV),',',num2str(max_PV),']  Batt [',num2str(min_batt),',',num2str(max_batt),'].'])
                     break;                                                  % terminate for loop over llp (only over 1 value in mode 1) s.t. the optimal solution matrix is not saved below and run whole simulation in while loop again with new initial values
                 else                                                        % in this case: at least option 2). (possibly also option 1).)
                     warning('The true optimal system may not be found since the step size is too large to describe the LLP isopleth. Please increase the PV/batt stepsize and try again.')    
