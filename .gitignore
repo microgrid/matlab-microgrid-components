@@ -1,3 +1,7 @@
+# Ignore generated data
+results.mat
+MA_opt_norm_bhut_jun15_20_10.mat
+
 # Created by https://www.gitignore.io
 
 ### Matlab ###
