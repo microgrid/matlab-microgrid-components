@@ -413,10 +413,7 @@ for year = loadCurve_titles                                   % outer loop going
                 accept(a_x) = 0;                
             end
 
-%             [ymax,xmax,ymin,xmin] = extrema_no_boundaries(this_LLP_costs);                                    
-%             accept(a_x) = length(xmin) > length(xmax);      % accept if there are more local minima than local maxima in the cost curve along the LLP isopleth i.e. accept if there is a global minimum (not lying at the boundaries)
-            
-            disp(['LLP: ',num2str(LLP_target*100),'%  accept: ',num2str(accept(a_x)),'  max: ', num2str(length(xmax)),'  min: ',num2str(length(xmin))])
+            disp(['LLP: ',num2str(LLP_target*100),'%  accept: ',num2str(accept(a_x))])
 
             % Plot the cost along this LLP isopleth (direction from boundary on right to boundary on top)
             % with local minima and maxima. 
