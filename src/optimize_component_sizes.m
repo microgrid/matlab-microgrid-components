@@ -73,7 +73,9 @@ else
     error('ERROR: please specify a mode to run the program in. Choose mode=1 for fixed LLP, mode=2 for fixed cost or mode=3 for computing for all LLP and all cost.');
 end
 
-makePlot = 0;                                                       % set to 1 if plots are desired
+makeGridPlot = 1;                                                   % set to 1 if the grid plot with all PV/batt systems and their LLP is desired
+make2DPlot = 0;                                                     % set to 1 if 2D plots are desired
+make3DPlot = 0;                                                     % set to 1 if 3D plots are desired (variables w.r.t. both PV and battery size)
 loadCurve_titles = [100];                                           % array with names (i.e. name them by year) of all load curves to be imported. In the case '[100]' there is just one called '100'. 
 columns = length(loadCurve_titles) * 6;                             % since we will be interested in 6 variables at the end
 MA_opt_norm_bhut = zeros(length(range_LLP), columns);               % initialization of the optimal-solution matrix
@@ -110,7 +112,7 @@ load_curves_counter = 0;                                      % counter for the 
     
 for year = loadCurve_titles                                   % outer loop going through all the different data sets
     
-    clearvars -except x_llp a_x makePlot MA_opt_norm_bhut year loadCurve_titles load_curves_counter min_PV max_PV step_PV n_PV min_batt max_batt step_batt n_batt range_LLP LLP_fixed mode budget_fixed
+    clearvars -except x_llp a_x makeGridPlot make2DPlot make3DPlot MA_opt_norm_bhut year loadCurve_titles load_curves_counter min_PV max_PV step_PV n_PV min_batt max_batt step_batt n_batt range_LLP LLP_fixed mode budget_fixed
 
     load_curves_counter = load_curves_counter + 1;
         
@@ -256,7 +258,7 @@ for year = loadCurve_titles                                   % outer loop going
                     abs(sum(LL_this) / sum(Load));                          % Finds percentage of Load not served (w.r.t. kWh)
                     length(LL_this(find(LL_this<0))) / length(LL_this);     % System Average Interruption Frequency Index (SAIFI), how many hours are without power  (w.r.t. hours)
 
-                    if makePlot == 1
+                    if make2DPlot == 1
                         figure(1)
                         plot(P_pv,'Color',[255 192 33] / 255)
                         hold on
@@ -415,19 +417,21 @@ for year = loadCurve_titles                                   % outer loop going
 
             disp(['LLP: ',num2str(LLP_target*100),'%  accept: ',num2str(accept(a_x))])
 
-            % Plot the cost along this LLP isopleth (direction from boundary on right to boundary on top)
-            % with local minima and maxima. 
-            % The optimal system is within the search range if there is a global minimum (not lying on the boundaries)
-            figure(9)
-            x = 1:length(this_LLP_costs);
-            plot(x,this_LLP_costs,'-o')        
-            hold on
-            plot(x(xmax),ymax,'r*',x(xmin),ymin,'g*')        
-            hold off
-            set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
-            title(['Extrema of costs along the LLP = ',num2str(LLP_target*100),'% isopleth']);
-            xlabel(['Nr of system along the LLP = ',num2str(LLP_target*100),'% isopleth']);
-            ylabel('Costs (NPC) [EUR]');
+            if make2DPlot == 1
+                % Plot the cost along this LLP isopleth (direction from boundary on right to boundary on top)
+                % with local minima and maxima. 
+                % The optimal system is within the search range if there is a global minimum (not lying on the boundaries)
+                figure(9)
+                x = 1:length(this_LLP_costs);
+                plot(x,this_LLP_costs,'-o')        
+                hold on
+                plot(x(xmax),ymax,'r*',x(xmin),ymin,'g*')        
+                hold off
+                set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+                title(['Extrema of costs along the LLP = ',num2str(LLP_target*100),'% isopleth']);
+                xlabel(['Nr of system along the LLP = ',num2str(LLP_target*100),'% isopleth']);
+                ylabel('Costs (NPC) [EUR]');
+            end
 
             % Extend the search range if optimal system is not a minimum
 
@@ -511,7 +515,7 @@ for year = loadCurve_titles                                   % outer loop going
     %% PART 5
     % PLOTTING (for last value of LLP in a_x)
 
-    if makePlot == 1
+    if make3DPlot == 1
         figure(4);
         mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, NPC);
         set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
@@ -542,67 +546,68 @@ for year = loadCurve_titles                                   % outer loop going
     end
 end
 
-%% PART 6 
-% make a plot of resulting systems PV vs Batt size, where the color of
-% dots gives LLP value and isopleths of budget are added in black
+if makeGridPlot == 1
+    %% PART 6 
+    % make a plot of resulting systems PV vs Batt size, where the color of
+    % dots gives LLP value and isopleths of budget are added in black
 
-% plotting dots for each system (x,y)=(PV, Batt) with color corresponding to
-% LLP
-nr_of_systems = n_PV * n_batt;
-x_values = zeros(1,nr_of_systems);
-y_values = zeros(1,nr_of_systems);
-colors = zeros(1,nr_of_systems);
+    % plotting dots for each system (x,y)=(PV, Batt) with color corresponding to
+    % LLP
+    nr_of_systems = n_PV * n_batt;
+    x_values = zeros(1,nr_of_systems);
+    y_values = zeros(1,nr_of_systems);
+    colors = zeros(1,nr_of_systems);
 
-dots_counter = 0;
-for i = 1:n_PV
-    for j = 1:n_batt
-        dots_counter = dots_counter + 1;
-        this_PV = min_PV + (i - 1) * step_PV;
-        this_batt = min_batt + (j - 1) * step_batt;
-        
-        x_values(dots_counter) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
-        y_values(dots_counter) = this_PV;                   
-        colors(dots_counter) = LLP(i,j)*100;                    % choose colour of the dot according to value of Loss of Load Probability in [%]. 
-%         colors(dots_counter) = roundn(LLP(i,j)*100,1);          % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
+    dots_counter = 0;
+    for i = 1:n_PV
+        for j = 1:n_batt
+            dots_counter = dots_counter + 1;
+            this_PV = min_PV + (i - 1) * step_PV;
+            this_batt = min_batt + (j - 1) * step_batt;
+
+            x_values(dots_counter) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
+            y_values(dots_counter) = this_PV;                   
+            colors(dots_counter) = LLP(i,j)*100;                    % choose colour of the dot according to value of Loss of Load Probability in [%]. 
+    %         colors(dots_counter) = roundn(LLP(i,j)*100,1);          % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
+        end
     end
+
+    figure(8);
+    if dots_counter > 0
+        scatter(x_values, y_values, [], colors, 'filled')            
+        hold on
+    end
+
+    % rounding costs in order to compare up to x digits with certain values of isopleths
+    NPC_rounded = roundn(NPC,4);                                % round the cost to 10^4 EUR
+    min_cost = roundn(min(NPC(:)),4);                           % lowest cost that occurs rounded to 10^4 EUR
+    max_cost = roundn(max(NPC(:)),4);                           % highest cost that occurs rounded to 10^4 EUR
+    budget_range = linspace(min_cost, max_cost, 10);            % determining how many budget isopleths are plotted
+
+    % plotting isopleths of equal cost (NPC) in black
+    for cost = budget_range
+        [cost_x, cost_y] = find(NPC_rounded == cost);           % find all systems (x,y) = (PV_i, batt_i) for this cost
+        cost_x = min_PV + (cost_x - 1) * step_PV;               % convert to correct values of PV i.e. in [kW] instead of their order 1, 2, 3, ...
+        cost_y = min_batt + (cost_y - 1) * step_batt;
+        plot(cost_y, cost_x, 'k-o', 'linewidth', 1.1)
+        hold on
+    end
+
+    % plotting LLP isopleth in red (if mode = 1)
+    if mode == 1
+        plot_LLP_x = min_PV + (this_LLP_x - 1) * step_PV;       
+        plot_LLP_y = min_batt + (this_LLP_y - 1) * step_batt;
+        plot(plot_LLP_y, plot_LLP_x, 'r-o', 'linewidth', 1.1)
+    end
+
+    hold off
+    bar = colorbar;
+    set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+    ylabel(bar,'Loss of Load Probability [%]')
+    xlabel('Battery bank size [kWh]')
+    ylabel('PV array size [kW]')
+    title('The LLP of each (batt, PV) system in colour. Isopleths of equal cost (NPC) are in black.')
 end
-
-figure(8);
-if dots_counter > 0
-    scatter(x_values, y_values, [], colors, 'filled')            
-    hold on
-end
-
-% rounding costs in order to compare up to x digits with certain values of isopleths
-NPC_rounded = roundn(NPC,4);                                % round the cost to 10^4 EUR
-min_cost = roundn(min(NPC(:)),4);                           % lowest cost that occurs rounded to 10^4 EUR
-max_cost = roundn(max(NPC(:)),4);                           % highest cost that occurs rounded to 10^4 EUR
-budget_range = linspace(min_cost, max_cost, 10);            % determining how many budget isopleths are plotted
-
-% plotting isopleths of equal cost (NPC) in black
-for cost = budget_range
-    [cost_x, cost_y] = find(NPC_rounded == cost);           % find all systems (x,y) = (PV_i, batt_i) for this cost
-    cost_x = min_PV + (cost_x - 1) * step_PV;               % convert to correct values of PV i.e. in [kW] instead of their order 1, 2, 3, ...
-    cost_y = min_batt + (cost_y - 1) * step_batt;
-    plot(cost_y, cost_x, 'k-o', 'linewidth', 1.1)
-    hold on
-end
-
-% plotting LLP isopleth in red (if mode = 1)
-if mode == 1
-    plot_LLP_x = min_PV + (this_LLP_x - 1) * step_PV;       
-    plot_LLP_y = min_batt + (this_LLP_y - 1) * step_batt;
-    plot(plot_LLP_y, plot_LLP_x, 'r-o', 'linewidth', 1.1)
-end
-
-hold off
-bar = colorbar;
-set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
-ylabel(bar,'Loss of Load Probability [%]')
-xlabel('Battery bank size [kWh]')
-ylabel('PV array size [kW]')
-title('The LLP of each (batt, PV) system in colour. Isopleths of equal cost (NPC) are in black.')
-
 %%
 save('MA_opt_norm_bhut.mat','MA_opt_norm_bhut')
 
