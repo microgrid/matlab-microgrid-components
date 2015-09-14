@@ -133,7 +133,7 @@ for year = loadCurve_titles                                   % outer loop going
 %     Load = 100 .* Load;
     
     %% System components 
-    % System details and input variables are as follows
+    % System details and input variables are as follows                
     
     % PV panels
     eff_BoS = 0.85;             % Balance Of System: account for such factors as soiling of the panels, wiring losses, shading, snow cover, aging, and so on
