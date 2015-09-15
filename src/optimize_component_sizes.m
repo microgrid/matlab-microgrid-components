@@ -44,11 +44,11 @@
 
 clear all
 close all
-tic                                         % Start timer for the script
+tic                                         % start timer for the script
 
 % choose a mode to run the script: 
 % 1 for fixed LLP, 2 for fixed cost, 3 for computing for all LLP and all cost
-mode = 1;
+mode = 3;
 
 if mode == 1
     % specify if mode = 1 (fixed LLP):
@@ -61,7 +61,7 @@ elseif mode == 2
     budget_fixed = 800000;                  % aimed budget in [EUR]. The program will find the lowest LLP for this budget.
     
     % todo the program is not written yet for this mode! Write it analogous to
-    % mode 1 but interchange the roles of LLP and budget isopleths.
+    % mode 1 but interchange the roles of LLP isopleths and budget isopleths.
     disp(['The program runs in mode 2 (fixed cost): for a fixed cost of EUR ', num2str(budget_fixed), ' it looks for the lowest LLP.']);
     range_LLP = [];                         % in this mode we do not iterate over LLP (only over cost) so we skip the for loop over range_LLP.
 elseif mode == 3
@@ -73,7 +73,9 @@ else
     error('ERROR: please specify a mode to run the program in. Choose mode=1 for fixed LLP, mode=2 for fixed cost or mode=3 for computing for all LLP and all cost.');
 end
 
-makePlot = 0;                                                       % set to 1 if plots are desired
+makeGridPlot = 1;                                                   % set to 1 if the grid plot with all PV/batt systems and their LLP is desired
+make2DPlot = 0;                                                     % set to 1 if 2D plots are desired
+make3DPlot = 0;                                                     % set to 1 if 3D plots are desired (variables w.r.t. both PV and battery size)
 loadCurve_titles = [100];                                           % array with names (i.e. name them by year) of all load curves to be imported. In the case '[100]' there is just one called '100'. 
 columns = length(loadCurve_titles) * 6;                             % since we will be interested in 6 variables at the end
 MA_opt_norm_bhut = zeros(length(range_LLP), columns);               % initialization of the optimal-solution matrix
@@ -110,7 +112,7 @@ load_curves_counter = 0;                                      % counter for the 
     
 for year = loadCurve_titles                                   % outer loop going through all the different data sets
     
-    clearvars -except x_llp a_x makePlot MA_opt_norm_bhut year loadCurve_titles load_curves_counter min_PV max_PV step_PV n_PV min_batt max_batt step_batt n_batt range_LLP LLP_fixed mode budget_fixed
+    clearvars -except x_llp a_x makeGridPlot make2DPlot make3DPlot MA_opt_norm_bhut year loadCurve_titles load_curves_counter min_PV max_PV step_PV n_PV min_batt max_batt step_batt n_batt range_LLP LLP_fixed mode budget_fixed
 
     load_curves_counter = load_curves_counter + 1;
         
@@ -131,7 +133,7 @@ for year = loadCurve_titles                                   % outer loop going
 %     Load = 100 .* Load;
     
     %% System components 
-    % System details and input variables are as follows
+    % System details and input variables are as follows                
     
     % PV panels
     eff_BoS = 0.85;             % Balance Of System: account for such factors as soiling of the panels, wiring losses, shading, snow cover, aging, and so on
@@ -183,8 +185,9 @@ for year = loadCurve_titles                                   % outer loop going
         SoC = zeros(1,size(Load,2));            % to save step-by-step SoC (State of Charge) of the battery
         IC = zeros(n_PV, n_batt);               % Investment Cost (IC) [EUR]
         YC = zeros(n_PV, n_batt);               % Operations & Maintenance & replacement; present cost [EUR]
-        accept(1:length(range_LLP)) = -1;       % To check whether the found optimal solution is the best one. Declaring a value of -1 everywhere since we are filling it with 0 and 1.
-
+        accept_range(1:length(range_LLP)) = -1; % To check whether the found optimal solution is the best one (check that best solution does not lie outside search range). Declaring a value of -1 everywhere since we are filling it with 0 and 1.
+        accept_step_size(1:length(range_LLP)) = -1; % To check whether the found optimal solution is the best one (check that stepsize is small enough to find enough values and to avoid irregularities). Declaring a value of -1 everywhere since we are filling it with 0 and 1.
+        
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% PART 2
         % SYSTEM SIMULATION AND PERFORMANCE INDICATORs COMPUTATION
@@ -256,7 +259,7 @@ for year = loadCurve_titles                                   % outer loop going
                     abs(sum(LL_this) / sum(Load));                          % Finds percentage of Load not served (w.r.t. kWh)
                     length(LL_this(find(LL_this<0))) / length(LL_this);     % System Average Interruption Frequency Index (SAIFI), how many hours are without power  (w.r.t. hours)
 
-                    if makePlot == 1
+                    if make2DPlot == 1
                         figure(1)
                         plot(P_pv,'Color',[255 192 33] / 255)
                         hold on
@@ -408,26 +411,26 @@ for year = loadCurve_titles                                   % outer loop going
             
             if ~isempty(xmin)
                 global_min_x = xmin(1);                                                     % xmin() are sorted in increasing order so xmin(1) is the lowest minimum
-                accept(a_x) = global_min_x ~= 1 & global_min_x ~= length(this_LLP_costs);   % accept if there is a global minimum that does not lie on the edges of the isopleth.                                    
+                accept_range(a_x) = ( global_min_x ~= 1 & global_min_x ~= length(this_LLP_costs) );   % accept if there is a global minimum that does not lie on the edges of the isopleth.                                    
             else
-                accept(a_x) = 0;                
+                accept_range(a_x) = 0;                
+            end                        
+            
+            if make2DPlot == 1
+                % Plot the cost along this LLP isopleth (direction from boundary on right to boundary on top)
+                % with local minima and maxima. 
+                % The optimal system is within the search range if there is a global minimum (not lying on the boundaries)
+                figure(9)
+                x = 1:length(this_LLP_costs);
+                plot(x,this_LLP_costs,'-o')        
+                hold on
+                plot(x(xmax),ymax,'r*',x(xmin),ymin,'g*')        
+                hold off
+                set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+                title(['Extrema of costs along the LLP = ',num2str(LLP_target*100),'% isopleth']);
+                xlabel(['Nr of system along the LLP = ',num2str(LLP_target*100),'% isopleth']);
+                ylabel('Costs (NPC) [EUR]');
             end
-
-            disp(['LLP: ',num2str(LLP_target*100),'%  accept: ',num2str(accept(a_x))])
-
-            % Plot the cost along this LLP isopleth (direction from boundary on right to boundary on top)
-            % with local minima and maxima. 
-            % The optimal system is within the search range if there is a global minimum (not lying on the boundaries)
-            figure(9)
-            x = 1:length(this_LLP_costs);
-            plot(x,this_LLP_costs,'-o')        
-            hold on
-            plot(x(xmax),ymax,'r*',x(xmin),ymin,'g*')        
-            hold off
-            set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
-            title(['Extrema of costs along the LLP = ',num2str(LLP_target*100),'% isopleth']);
-            xlabel(['Nr of system along the LLP = ',num2str(LLP_target*100),'% isopleth']);
-            ylabel('Costs (NPC) [EUR]');
 
             % Extend the search range if optimal system is not a minimum
 
@@ -436,20 +439,24 @@ for year = loadCurve_titles                                   % outer loop going
             % 2). step size is too large s.t. isopleth stops in middle of grid
             %     e.g. 74% isopleth stops halfway and then only 73% and 75% are present
             
-            if mode == 1 && accept(1) == 0
-                % check whether option 1). or 2). is the case            
-                x1 = this_LLP_x(1);     % first point on the LLP isopleth i.e. lying on the boundary on the right in figure (8)
-                y1 = this_LLP_y(1);
-                x2 = this_LLP_x(end);   % last point on the LLP isopleth i.e. lying on the boundary on the top in figure (8)
-                y2 = this_LLP_y(end);
-                
-                first_point_crosses_edge = (x1 == 1 | x1 == n_PV | y1 == 1 | y1 == n_batt);
-                last_point_crosses_edge = (x2 == 1 | x2 == n_PV | y2 == 1 | y2 == n_batt);
+            % check whether option 1). or 2). is the case:            
+            x1 = this_LLP_x(1);     % first point on the LLP isopleth i.e. lying on the boundary on the right in figure (8)
+            y1 = this_LLP_y(1);
+            x2 = this_LLP_x(end);   % last point on the LLP isopleth i.e. lying on the boundary on the top in figure (8)
+            y2 = this_LLP_y(end);
 
-                if first_point_crosses_edge && last_point_crosses_edge      % in this case: option 1).
+            first_point_crosses_edge = (x1 == 1 | x1 == n_PV | y1 == 1 | y1 == n_batt);
+            last_point_crosses_edge = (x2 == 1 | x2 == n_PV | y2 == 1 | y2 == n_batt);             
+            accept_step_size(a_x) = (first_point_crosses_edge && last_point_crosses_edge);     % then step size is small enough since LLP isopleth goes inside and outside the search range
+
+            disp(['LLP: ',num2str(LLP_target*100),'%  accept_range: ',num2str(accept_range(a_x)), '  accept_step_size: ',num2str(accept_step_size(a_x))])            
+            
+            if accept_step_size(a_x)      
+                % only warn for mode 1 since we don't want 100 the same warnings in mode 3          
+                if mode == 1 && accept_range(a_x)== 0     
                     warning('The true optimal system lies without the search range. The search range of PV/batt has to be changed.')
-                    
-                    % change search range:
+
+                    % change search range (only for mode 1):
                     factor_to_edge = 0.25;                          % how far from the edge the previous ending point of LLP isopleth will lie in the new grid. Value must be in [0,1] and small e.g. 1/4. 
                     length_batt = max_batt - min_batt;
                     length_PV = max_PV - min_PV;            
@@ -486,11 +493,13 @@ for year = loadCurve_titles                                   % outer loop going
                     disp('Changed PV and battery range and restarted simulation.')
                     disp(['New range: PV [',num2str(min_PV),',',num2str(max_PV),']  Batt [',num2str(min_batt),',',num2str(max_batt),'].'])
                     break;                                                  % terminate for loop over llp (only over 1 value in mode 1) s.t. the optimal solution matrix is not saved below and run whole simulation in while loop again with new initial values
-                else                                                        % in this case: at least option 2). (possibly also option 1).)
+                end
+            else                                                        % in this case: at least option 2). (possibly also option 1).)
+                if mode == 1        % only warn for mode 1 since we don't want 100 the same warnings in mode 3
                     warning('The true optimal system may not be found since the step size is too large to describe the LLP isopleth. Please increase the PV/batt stepsize and try again.')    
                 end
-            end
-
+            end                                                
+                
             repeat = false;                     % do not run whole simulation again (search range does not need to be reset)
             
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -511,7 +520,7 @@ for year = loadCurve_titles                                   % outer loop going
     %% PART 5
     % PLOTTING (for last value of LLP in a_x)
 
-    if makePlot == 1
+    if make3DPlot == 1
         figure(4);
         mesh(min_batt : step_batt : max_batt, min_PV : step_PV : max_PV, NPC);
         set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
@@ -542,70 +551,72 @@ for year = loadCurve_titles                                   % outer loop going
     end
 end
 
-%% PART 6 
-% make a plot of resulting systems PV vs Batt size, where the color of
-% dots gives LLP value and isopleths of budget are added in black
+if makeGridPlot == 1
+    %% PART 6 
+    % make a plot of resulting systems PV vs Batt size, where the color of
+    % dots gives LLP value and isopleths of budget are added in black
 
-% plotting dots for each system (x,y)=(PV, Batt) with color corresponding to
-% LLP
-nr_of_systems = n_PV * n_batt;
-x_values = zeros(1,nr_of_systems);
-y_values = zeros(1,nr_of_systems);
-colors = zeros(1,nr_of_systems);
+    % plotting dots for each system (x,y)=(PV, Batt) with color corresponding to
+    % LLP
+    nr_of_systems = n_PV * n_batt;
+    x_values = zeros(1,nr_of_systems);
+    y_values = zeros(1,nr_of_systems);
+    colors = zeros(1,nr_of_systems);
 
-dots_counter = 0;
-for i = 1:n_PV
-    for j = 1:n_batt
-        dots_counter = dots_counter + 1;
-        this_PV = min_PV + (i - 1) * step_PV;
-        this_batt = min_batt + (j - 1) * step_batt;
-        
-        x_values(dots_counter) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
-        y_values(dots_counter) = this_PV;                   
-        colors(dots_counter) = LLP(i,j)*100;                    % choose colour of the dot according to value of Loss of Load Probability in [%]. 
-%         colors(dots_counter) = roundn(LLP(i,j)*100,1);          % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
+    dots_counter = 0;
+    for i = 1:n_PV
+        for j = 1:n_batt
+            dots_counter = dots_counter + 1;
+            this_PV = min_PV + (i - 1) * step_PV;
+            this_batt = min_batt + (j - 1) * step_batt;
+
+            x_values(dots_counter) = this_batt;                     % we want to plot batt on x-axis and PV on y-axis (in NPC and LLP matrices it is the other way around)
+            y_values(dots_counter) = this_PV;                   
+            colors(dots_counter) = LLP(i,j)*100;                    % choose colour of the dot according to value of Loss of Load Probability in [%]. 
+    %         colors(dots_counter) = roundn(LLP(i,j)*100,1);          % choose colour of the dot according to value of Loss of Load Probability in [%]. Rounded to steps of 10% s.t. colour differences in the plot can be seen better.
+        end
     end
+
+    figure(8);
+    if dots_counter > 0
+        scatter(x_values, y_values, [], colors, 'filled')            
+        hold on
+    end
+
+    % rounding costs in order to compare up to x digits with certain values of isopleths
+    NPC_rounded = roundn(NPC,4);                                % round the cost to 10^4 EUR
+    min_cost = roundn(min(NPC(:)),4);                           % lowest cost that occurs rounded to 10^4 EUR
+    max_cost = roundn(max(NPC(:)),4);                           % highest cost that occurs rounded to 10^4 EUR
+    budget_range = linspace(min_cost, max_cost, 10);            % determining how many budget isopleths are plotted
+
+    % plotting isopleths of equal cost (NPC) in black
+    for cost = budget_range
+        [cost_x, cost_y] = find(NPC_rounded == cost);           % find all systems (x,y) = (PV_i, batt_i) for this cost
+        cost_x = min_PV + (cost_x - 1) * step_PV;               % convert to correct values of PV i.e. in [kW] instead of their order 1, 2, 3, ...
+        cost_y = min_batt + (cost_y - 1) * step_batt;
+        plot(cost_y, cost_x, 'k-o', 'linewidth', 1.1)
+        hold on
+    end
+
+    % plotting LLP isopleth in red (if mode = 1)
+    if mode == 1
+        plot_LLP_x = min_PV + (this_LLP_x - 1) * step_PV;       
+        plot_LLP_y = min_batt + (this_LLP_y - 1) * step_batt;
+        plot(plot_LLP_y, plot_LLP_x, 'r-o', 'linewidth', 1.1)
+    end
+
+    hold off
+    bar = colorbar;
+    set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+    ylabel(bar,'Loss of Load Probability [%]')
+    xlabel('Battery bank size [kWh]')
+    ylabel('PV array size [kW]')
+    title('The LLP of each (batt, PV) system in colour. Isopleths of equal cost (NPC) are in black.')
 end
-
-figure(8);
-if dots_counter > 0
-    scatter(x_values, y_values, [], colors, 'filled')            
-    hold on
-end
-
-% rounding costs in order to compare up to x digits with certain values of isopleths
-NPC_rounded = roundn(NPC,4);                                % round the cost to 10^4 EUR
-min_cost = roundn(min(NPC(:)),4);                           % lowest cost that occurs rounded to 10^4 EUR
-max_cost = roundn(max(NPC(:)),4);                           % highest cost that occurs rounded to 10^4 EUR
-budget_range = linspace(min_cost, max_cost, 10);            % determining how many budget isopleths are plotted
-
-% plotting isopleths of equal cost (NPC) in black
-for cost = budget_range
-    [cost_x, cost_y] = find(NPC_rounded == cost);           % find all systems (x,y) = (PV_i, batt_i) for this cost
-    cost_x = min_PV + (cost_x - 1) * step_PV;               % convert to correct values of PV i.e. in [kW] instead of their order 1, 2, 3, ...
-    cost_y = min_batt + (cost_y - 1) * step_batt;
-    plot(cost_y, cost_x, 'k-o', 'linewidth', 1.1)
-    hold on
-end
-
-% plotting LLP isopleth in red (if mode = 1)
-if mode == 1
-    plot_LLP_x = min_PV + (this_LLP_x - 1) * step_PV;       
-    plot_LLP_y = min_batt + (this_LLP_y - 1) * step_batt;
-    plot(plot_LLP_y, plot_LLP_x, 'r-o', 'linewidth', 1.1)
-end
-
-hold off
-bar = colorbar;
-set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
-ylabel(bar,'Loss of Load Probability [%]')
-xlabel('Battery bank size [kWh]')
-ylabel('PV array size [kW]')
-title('The LLP of each (batt, PV) system in colour. Isopleths of equal cost (NPC) are in black.')
-
 %%
 save('MA_opt_norm_bhut.mat','MA_opt_norm_bhut')
 
+% output conclusions:
 if mode == 1
     disp(['For the fixed LLP of ',num2str(LLP_fixed),'% the optimal system is given in MA_opt_norm_bhut.mat.'])
     disp('The columns mean LLP_opt NPC_opt PV_opt[kW] batt_opt[kW] LCoE_opt IC_opt, respectively.')
@@ -614,10 +625,14 @@ elseif mode ==3
     disp('Each row gives the optimal system for one value of LLP, in the order of LLP_range.')
     disp('The columns mean LLP_opt NPC_opt PV_opt[kW] batt_opt[kW] LCoE_opt IC_opt, respectively.')
     
-    problematic_LLPs = range_LLP(find(accept == 0));
-    if ~isempty(problematic_LLPs)
-       warning(['For the ',num2str(length(problematic_LLPs)),' values of LLP given in the vector ''problematic_LLPs'' (in %), the true optimal system may lie outside the range of searched PV/batt sizes (accept=0).']) 
+    problematic_LLPs_range = range_LLP(find(accept_range == 0));
+    problematic_LLPs_step_size = range_LLP(find(accept_step_size == 0));
+    if ~isempty(problematic_LLPs_range)
+       warning(['For the ',num2str(length(problematic_LLPs_range)),' values of LLP given in the vector ''problematic_LLPs_range'' (in %), the true optimal system may lie outside the range of searched PV/batt sizes (accept=0).']) 
     end
+    if ~isempty(problematic_LLPs_step_size)
+       warning(['For the ',num2str(length(problematic_LLPs_step_size)),' values of LLP given in the vector ''problematic_LLPs_step_size'' (in %), the true optimal system may not be found since the step size is too large to describe the LLP isopleth. Please increase the PV/batt stepsize and try again.']) 
+    end    
 end
 
 toc % End timer
