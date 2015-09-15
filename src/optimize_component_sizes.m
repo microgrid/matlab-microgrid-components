@@ -44,7 +44,7 @@
 
 clear all
 close all
-tic                                         % Start timer for the script
+tic                                         % start timer for the script
 
 % choose a mode to run the script: 
 % 1 for fixed LLP, 2 for fixed cost, 3 for computing for all LLP and all cost
@@ -61,7 +61,7 @@ elseif mode == 2
     budget_fixed = 800000;                  % aimed budget in [EUR]. The program will find the lowest LLP for this budget.
     
     % todo the program is not written yet for this mode! Write it analogous to
-    % mode 1 but interchange the roles of LLP and budget isopleths.
+    % mode 1 but interchange the roles of LLP isopleths and budget isopleths.
     disp(['The program runs in mode 2 (fixed cost): for a fixed cost of EUR ', num2str(budget_fixed), ' it looks for the lowest LLP.']);
     range_LLP = [];                         % in this mode we do not iterate over LLP (only over cost) so we skip the for loop over range_LLP.
 elseif mode == 3
