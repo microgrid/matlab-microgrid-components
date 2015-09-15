@@ -48,7 +48,7 @@ tic                                         % Start timer for the script
 
 % choose a mode to run the script: 
 % 1 for fixed LLP, 2 for fixed cost, 3 for computing for all LLP and all cost
-mode = 1;
+mode = 3;
 
 if mode == 1
     % specify if mode = 1 (fixed LLP):
@@ -185,8 +185,9 @@ for year = loadCurve_titles                                   % outer loop going
         SoC = zeros(1,size(Load,2));            % to save step-by-step SoC (State of Charge) of the battery
         IC = zeros(n_PV, n_batt);               % Investment Cost (IC) [EUR]
         YC = zeros(n_PV, n_batt);               % Operations & Maintenance & replacement; present cost [EUR]
-        accept(1:length(range_LLP)) = -1;       % To check whether the found optimal solution is the best one. Declaring a value of -1 everywhere since we are filling it with 0 and 1.
-
+        accept_range(1:length(range_LLP)) = -1; % To check whether the found optimal solution is the best one (check that best solution does not lie outside search range). Declaring a value of -1 everywhere since we are filling it with 0 and 1.
+        accept_step_size(1:length(range_LLP)) = -1; % To check whether the found optimal solution is the best one (check that stepsize is small enough to find enough values and to avoid irregularities). Declaring a value of -1 everywhere since we are filling it with 0 and 1.
+        
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% PART 2
         % SYSTEM SIMULATION AND PERFORMANCE INDICATORs COMPUTATION
@@ -410,13 +411,11 @@ for year = loadCurve_titles                                   % outer loop going
             
             if ~isempty(xmin)
                 global_min_x = xmin(1);                                                     % xmin() are sorted in increasing order so xmin(1) is the lowest minimum
-                accept(a_x) = global_min_x ~= 1 & global_min_x ~= length(this_LLP_costs);   % accept if there is a global minimum that does not lie on the edges of the isopleth.                                    
+                accept_range(a_x) = ( global_min_x ~= 1 & global_min_x ~= length(this_LLP_costs) );   % accept if there is a global minimum that does not lie on the edges of the isopleth.                                    
             else
-                accept(a_x) = 0;                
-            end
-
-            disp(['LLP: ',num2str(LLP_target*100),'%  accept: ',num2str(accept(a_x))])
-
+                accept_range(a_x) = 0;                
+            end                        
+            
             if make2DPlot == 1
                 % Plot the cost along this LLP isopleth (direction from boundary on right to boundary on top)
                 % with local minima and maxima. 
@@ -440,20 +439,24 @@ for year = loadCurve_titles                                   % outer loop going
             % 2). step size is too large s.t. isopleth stops in middle of grid
             %     e.g. 74% isopleth stops halfway and then only 73% and 75% are present
             
-            if mode == 1 && accept(1) == 0
-                % check whether option 1). or 2). is the case            
-                x1 = this_LLP_x(1);     % first point on the LLP isopleth i.e. lying on the boundary on the right in figure (8)
-                y1 = this_LLP_y(1);
-                x2 = this_LLP_x(end);   % last point on the LLP isopleth i.e. lying on the boundary on the top in figure (8)
-                y2 = this_LLP_y(end);
-                
-                first_point_crosses_edge = (x1 == 1 | x1 == n_PV | y1 == 1 | y1 == n_batt);
-                last_point_crosses_edge = (x2 == 1 | x2 == n_PV | y2 == 1 | y2 == n_batt);
+            % check whether option 1). or 2). is the case:            
+            x1 = this_LLP_x(1);     % first point on the LLP isopleth i.e. lying on the boundary on the right in figure (8)
+            y1 = this_LLP_y(1);
+            x2 = this_LLP_x(end);   % last point on the LLP isopleth i.e. lying on the boundary on the top in figure (8)
+            y2 = this_LLP_y(end);
 
-                if first_point_crosses_edge && last_point_crosses_edge      % in this case: option 1).
+            first_point_crosses_edge = (x1 == 1 | x1 == n_PV | y1 == 1 | y1 == n_batt);
+            last_point_crosses_edge = (x2 == 1 | x2 == n_PV | y2 == 1 | y2 == n_batt);             
+            accept_step_size(a_x) = (first_point_crosses_edge && last_point_crosses_edge);     % then step size is small enough since LLP isopleth goes inside and outside the search range
+
+            disp(['LLP: ',num2str(LLP_target*100),'%  accept_range: ',num2str(accept_range(a_x)), '  accept_step_size: ',num2str(accept_step_size(a_x))])            
+            
+            if accept_step_size(a_x)      
+                % only warn for mode 1 since we don't want 100 the same warnings in mode 3          
+                if mode == 1 && accept_range(a_x)== 0     
                     warning('The true optimal system lies without the search range. The search range of PV/batt has to be changed.')
-                    
-                    % change search range:
+
+                    % change search range (only for mode 1):
                     factor_to_edge = 0.25;                          % how far from the edge the previous ending point of LLP isopleth will lie in the new grid. Value must be in [0,1] and small e.g. 1/4. 
                     length_batt = max_batt - min_batt;
                     length_PV = max_PV - min_PV;            
@@ -490,11 +493,13 @@ for year = loadCurve_titles                                   % outer loop going
                     disp('Changed PV and battery range and restarted simulation.')
                     disp(['New range: PV [',num2str(min_PV),',',num2str(max_PV),']  Batt [',num2str(min_batt),',',num2str(max_batt),'].'])
                     break;                                                  % terminate for loop over llp (only over 1 value in mode 1) s.t. the optimal solution matrix is not saved below and run whole simulation in while loop again with new initial values
-                else                                                        % in this case: at least option 2). (possibly also option 1).)
+                end
+            else                                                        % in this case: at least option 2). (possibly also option 1).)
+                if mode == 1        % only warn for mode 1 since we don't want 100 the same warnings in mode 3
                     warning('The true optimal system may not be found since the step size is too large to describe the LLP isopleth. Please increase the PV/batt stepsize and try again.')    
                 end
-            end
-
+            end                                                
+                
             repeat = false;                     % do not run whole simulation again (search range does not need to be reset)
             
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -611,6 +616,7 @@ end
 %%
 save('MA_opt_norm_bhut.mat','MA_opt_norm_bhut')
 
+% output conclusions:
 if mode == 1
     disp(['For the fixed LLP of ',num2str(LLP_fixed),'% the optimal system is given in MA_opt_norm_bhut.mat.'])
     disp('The columns mean LLP_opt NPC_opt PV_opt[kW] batt_opt[kW] LCoE_opt IC_opt, respectively.')
@@ -619,10 +625,14 @@ elseif mode ==3
     disp('Each row gives the optimal system for one value of LLP, in the order of LLP_range.')
     disp('The columns mean LLP_opt NPC_opt PV_opt[kW] batt_opt[kW] LCoE_opt IC_opt, respectively.')
     
-    problematic_LLPs = range_LLP(find(accept == 0));
-    if ~isempty(problematic_LLPs)
-       warning(['For the ',num2str(length(problematic_LLPs)),' values of LLP given in the vector ''problematic_LLPs'' (in %), the true optimal system may lie outside the range of searched PV/batt sizes (accept=0).']) 
+    problematic_LLPs_range = range_LLP(find(accept_range == 0));
+    problematic_LLPs_step_size = range_LLP(find(accept_step_size == 0));
+    if ~isempty(problematic_LLPs_range)
+       warning(['For the ',num2str(length(problematic_LLPs_range)),' values of LLP given in the vector ''problematic_LLPs_range'' (in %), the true optimal system may lie outside the range of searched PV/batt sizes (accept=0).']) 
     end
+    if ~isempty(problematic_LLPs_step_size)
+       warning(['For the ',num2str(length(problematic_LLPs_step_size)),' values of LLP given in the vector ''problematic_LLPs_step_size'' (in %), the true optimal system may not be found since the step size is too large to describe the LLP isopleth. Please increase the PV/batt stepsize and try again.']) 
+    end    
 end
 
 toc % End timer
