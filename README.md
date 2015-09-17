@@ -15,8 +15,11 @@ N.B. CyclesToFailure() also depends on the battery and must be changed then.
 - [ ] F. Think about dependance on square meters. x, t, m2. (m2 can be obtained from the rated power PV_size and the type of PV). Alternative is to write this out (and ask for these inputs explicitly).
 - [ ] genetic algorithm? (Honorat)
 - [ ] check that fig(6) is correct i.e. that always 8 sets of batteries. It is not! Compare with output of original script (stepsizes 2 and 5).
+
+*new*
 - [ ] determine search range from integration (needed since if no value is found at all for LLP=10 then script does not know which way to go)
 - [ ] parallellize
+- [ ] change 2dPlots to only plotting for optimal solution instead of 2nd steps (1. rewrite matrices with 3 coordinates to 2 coordinates with arrays over time as elements. 2. change place of plots to bottom, outside for loop.)
 
 ## Todo list (tests)
 - [ ] give error if SoC < 20% (It may never be zero)
