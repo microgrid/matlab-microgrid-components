@@ -46,7 +46,8 @@ plot(Load_av_3_hrs_earlier,'b--')
 hold on
 plot(Load_av_6_hrs_earlier,'b:')
 hold off
-xlabel('time (hour)')
 set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+xlabel('Time (hour)')
+ylabel('kW')
 title('An average day')
 legend('irradiation x 100', 'Load', 'Load 3 hrs to left', 'Load 6 hrs to left','Location','northwest')
