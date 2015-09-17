@@ -43,7 +43,7 @@ tic
 
 x_llp=linspace(1,20,20);    % range of LLP_target 
 loadCurve=[100];                  % number of data-sets
-makePlot=1;                 % set to 1 if plots are desired
+makePlot=0;                 % set to 1 if plots are desired
 colomns=length(loadCurve)*6;
 MA_opt_norm_bhut_jun15_20_10=zeros(length(x_llp),colomns);    % initialization of the optimal-solution matrix
 
@@ -228,7 +228,7 @@ for year=loadCurve          % outer loop going through all the different data se
         %% PART 5
         % LOOKING FOR THE OPTIMUM PLANT AS REGARDS THE TARGETED LLP
 
-        LLP_var = 0.15;                                                                        % accepted error band near targeted LLP value (original: 0.005)
+        LLP_var = 0.005;                                                                        % accepted error band near targeted LLP value (osriginal: 0.005)
         [posPV, posB] = find( (LLP_target - LLP_var) < LLP & LLP < (LLP_target + LLP_var) );  % find systems with targeted LLP (within error band)
         NPC_opt = min( diag(NPC(posPV, posB)) );                                              % find minimum NPC for the target LLP;
         for i = 1 : size(posPV, 1)
