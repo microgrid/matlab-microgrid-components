@@ -123,7 +123,9 @@ for year = loadCurve_titles                                   % outer loop going
     filename = ([path_to_dataBase, 'LoadCurve_normalized_single_3percent_',num2str(year),'.mat']);      % Average hourly global radiation (beam + diffuse) incident on the PV array [kW/m2]. Due to the simulation step [1h], this is also [kWh/m2]
     Load = importdata(filename);                                                                        % Import Load curve 
     T_amb = importdata([path_to_dataBase, 'surface_temp_phuent_2004_hour.mat']);                        % Import ambient temperature data
-
+    
+    rain = importdata([path_to_dataBase, 'precipitation_fictive.mat']);                                 % Hourly precipitation data for one year [in mm/hour] % Watch out! I made up the data precipitation_fictive and it is totally random.
+    
     % for Bangladesh (T_amb is wrong, still from Bhutan):
 %     irr = importdata([path_to_dataBase, 'solar_data_KapisaGazipur.mat']);                               % Use \ for Windows and / for Mac and Linux
 %     filename = ([path_to_dataBase, 'LoadCurve_bangladesh_',num2str(year),'.mat']);                      % Average hourly global radiation (beam + diffuse) incident on the PV array [kW/m2]. Due to the simulation step [1h], this is also [kWh/m2]
@@ -150,6 +152,12 @@ for year = loadCurve_titles                                   % outer loop going
     max_y_repl = 5;             % maximum year before battery replacement
     batt_ratio = 0.5;           % ratio power / energy of the battery (a measure for how fast battery can be (dis)charged)
 
+    % Pico hydro
+    factor_saved_rain = 0.8;    % factor of precipitation that is saved in a reservoir over a certain area
+    area_rainfall = 40;         % area over where precipitation is kept for instance one roof [m^2] 
+    height_drop = 1.2;          % drop of height that the water can make between the reservoir and reaching the turbine [m]
+    reservoir_size = 0.3;         % [m^3]
+    
     % Inverter
     eff_inv = 0.9;              % inverter efficiency
 
@@ -173,7 +181,80 @@ for year = loadCurve_titles                                   % outer loop going
     % P_syst = n_mod * P_mod;                     % Actually installed capacity [W]
     % cycl_B_SoC_min = 2000;                      % number of charge/discharge battery cycle
     
-    repeat = true;
+    
+    %% pico hydro
+    
+    % useful? http://picohydro.org.uk/ & http://www.ijera.com/papers/Vol4_issue1/Version%202/BA4102382385.pdf
+    
+    % declaration of simulation variables
+    stored_water = zeros(1,length(rain));                   % the amount of water stored in the reservoir [m^3]
+    state_of_reservoir = zeros(1,length(rain));             % how full the reservoir is given by a number in [0,1]; is analagous to SoC (State of Charge) for battery.
+    water_lost = zeros(1, length(rain));                    % amount of water that is lost since the reservoir is full      % todo should this be without including factor_saved_rain etc. such as it is with battery (without losses)?
+    hydro_power = zeros(1, length(rain));                   % amount of electricity produced by pico hydro power [kW] for every hour in the year. Since timestep is 1 hour this is the same as kWh.
+    
+    accessible_water = (rain .* 0.001) .* area_rainfall .* factor_saved_rain;      % the amount of water that can be saved (assuming that the reservoir is not full). rain is in mm so times 0.001 for meters. Result is in [m^3] of water.
+    reservoir_energy = 1;        % energy produced by emptying one reservoir of water [kWh]   % todo depends on size and on turbine!
+
+    
+    for t = 1:length(rain)
+        if t == 1
+            continue;           % todo this is ugly and rainfall at first hour is missed now. Reorganize t / t-1 / t+1 etc.
+        end
+        
+        % store the rainwater in the reservoir, except if the reservoir is full
+        stored_water(t) = stored_water(t) +  accessible_water(t);
+        state_of_reservoir(t) = stored_water(t) / reservoir_size;
+        
+        if stored_water(t) > reservoir_size                        % reservoir can not be more than full
+            water_lost(t) = stored_water(t) - reservoir_size;
+            stored_water(t) = reservoir_size; 
+            state_of_reservoir(t) = 1;
+        end
+        
+        stored_water(t+1) = stored_water(t);        
+        
+        % empty the reservoir if it is full and if it is 20:00 in the evening (as an example here)
+        if state_of_reservoir(t) == 1 && mod(t,24) == 20
+            stored_water(t+1) = 0;                  % empty reservoir and produce electricity
+            state_of_reservoir(t+1) = 0;
+            hydro_power(t) = reservoir_energy;      % todo or is the energy released at t+1 instead of t?            
+        end                      
+    end
+    
+    end_time = 48;
+    
+    figure(1)               % todo change counting of other figures?
+    plot(rain(1:end_time) ./ 7,'b-');
+    hold on
+    plot(water_lost(1:end_time),'c-');
+    hold on
+    plot(hydro_power(1:end_time),'r-');
+    hold on
+    plot(state_of_reservoir(1:end_time),'k-');        
+    hold off
+    set(gca,'FontSize',12,'FontName','Times New Roman','fontWeight','bold')
+    xlabel('Time over the year [hour]')
+    legend('rain / 7 [mm]','water lost [m^3]', 'hydro power generated [kW]', 'state of reservoir')
+    
+    
+      
+    
+    
+    
+    
+    
+    
+    %%
+    
+%     repeat = true;
+    
+    
+    
+    repeat = false;
+    
+    
+    
+    
     while(repeat)                               % make while loop to repeat entire simulation if PV/batt search range needs to be changed (only in mode 1)        
         %% Declaration of simulation variables
         EPV = zeros(n_PV, n_batt);              % Energy PV (EPV): yearly energy produced by the PV array [kWh]
